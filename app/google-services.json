@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "175749903155",
+    "project_id": "androidbtl-d09e0",
+    "storage_bucket": "androidbtl-d09e0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:175749903155:android:3f0abc85e5572486268446",
+        "android_client_info": {
+          "package_name": "com.example.androidbtl"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDC45bUQwWZ-FShJ8NC0xs1y2JfhXFGXaM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
