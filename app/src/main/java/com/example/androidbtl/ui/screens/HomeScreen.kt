@@ -45,7 +45,7 @@ fun HomeScreen(onNavigateToMenu: () -> Unit) {
         QuickActions(onNavigateToMenu)
         Spacer(modifier = Modifier.height(24.dp))
         FeaturedDishesSection()
-        Spacer(modifier = Modifier.height(80.dp)) // padding for bottom nav
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
 

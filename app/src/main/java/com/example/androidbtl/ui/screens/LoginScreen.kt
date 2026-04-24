@@ -27,22 +27,30 @@ fun LoginScreen(
 ) {
     var selectedTab by remember { mutableStateOf(0) } // 0 = Customer, 1 = Staff
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Background Image Header
-        Image(
-            painter = painterResource(id = R.drawable.hotpot_banner),
-            contentDescription = "Background",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-        )
+    Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray)) {
+        // Header Area with Fallback Background
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(300.dp)
-                .background(Color.Black.copy(alpha = 0.5f))
-        )
+                .background(Color(0xFF2D2D2D)) // Màu nền tối thay cho ảnh nếu bị lỗi
+        ) {
+            // Chỉ hiển thị ảnh nếu nó không gây crash, ở đây tôi dùng fallback là Box màu
+            // Bạn nên kiểm tra lại file res/drawable/hotpot_banner.jpg
+            Text(
+                "KICHI-KICHI",
+                modifier = Modifier.align(Alignment.Center),
+                color = Color.White.copy(alpha = 0.1f),
+                fontSize = 60.sp,
+                fontWeight = FontWeight.Black
+            )
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+            )
+        }
 
         // Title
         Column(
