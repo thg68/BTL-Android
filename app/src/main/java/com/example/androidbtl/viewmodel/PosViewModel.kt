@@ -74,24 +74,36 @@ class PosViewModel : ViewModel() {
     }
 
     fun addMenuItemToOrder(orderId: String, menuItem: MenuItem) {
-        // Simple append, in reality we'd check if it exists and increment quantity
-        db.collection("orders").document(orderId).get().addOnSuccessListener { doc ->
-            val order = doc.toObject(Order::class.java)
-            if (order != null) {
-                val newItem = OrderItem(
-                    menuItemId = menuItem.id,
-                    name = menuItem.name,
-                    quantity = 1,
-                    price = menuItem.price,
-                    status = "Pending"
-                )
-                val updatedItems = order.items + newItem
-                val newTotal = order.totalAmount + newItem.price
-                db.collection("orders").document(orderId).update(
-                    "items", updatedItems,
-                    "totalAmount", newTotal
+        val orderRef = db.collection("orders").document(orderId)
+
+        db.runTransaction { transaction ->
+            val snapshot = transaction.get(orderRef)
+            val order = snapshot.toObject(Order::class.java) ?: return@runTransaction
+
+            val existingIndex = order.items.indexOfFirst {
+                it.menuItemId == menuItem.id && it.status == "Pending"
+            }
+
+            val updatedItems = order.items.toMutableList()
+            if (existingIndex >= 0) {
+                val existingItem = updatedItems[existingIndex]
+                updatedItems[existingIndex] = existingItem.copy(quantity = existingItem.quantity + 1)
+            } else {
+                updatedItems.add(
+                    OrderItem(
+                        menuItemId = menuItem.id,
+                        name = menuItem.name,
+                        quantity = 1,
+                        price = menuItem.price,
+                        status = "Pending"
+                    )
                 )
             }
+
+            val newTotal = order.totalAmount + menuItem.price
+            transaction.update(orderRef, mapOf("items" to updatedItems, "totalAmount" to newTotal))
+        }.addOnFailureListener { e ->
+            Log.w("PosViewModel", "Failed to add menu item to order", e)
         }
     }
 
