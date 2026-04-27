@@ -13,6 +13,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,9 +33,18 @@ import com.example.androidbtl.viewmodel.PosViewModel
 fun POSOrderScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit) {
     val menuItems by viewModel.menuItems.collectAsState()
     val orders by viewModel.activeOrders.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
     
     // Find active order for this table
     val activeOrder = orders.find { it.tableId == tableId }
+    val filteredMenuItems = if (searchQuery.isBlank()) {
+        menuItems
+    } else {
+        menuItems.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                it.category.contains(searchQuery, ignoreCase = true)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -84,11 +96,22 @@ fun POSOrderScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit)
                 .fillMaxSize()
                 .background(Color(0xFFF8F9FA))
         ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                singleLine = true,
+                label = { Text("Tìm món") },
+                placeholder = { Text("Nhập tên món hoặc danh mục") }
+            )
+
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(menuItems) { item ->
+                items(filteredMenuItems) { item ->
                     PosMenuItemCard(item) {
                         if (activeOrder != null) {
                             viewModel.addMenuItemToOrder(activeOrder.id, item)
