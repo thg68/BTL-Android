@@ -24,54 +24,76 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androidbtl.R
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.BrandYellowLight
 import com.example.androidbtl.ui.theme.TextPrimary
 
 @Composable
 fun HomeScreen(onNavigateToMenu: () -> Unit) {
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
-            .verticalScroll(scrollState)
-            .padding(16.dp)
-    ) {
-        GreetingSection()
-        Spacer(modifier = Modifier.height(24.dp))
-        BannerSection()
-        Spacer(modifier = Modifier.height(24.dp))
-        QuickActions(onNavigateToMenu)
-        Spacer(modifier = Modifier.height(24.dp))
-        FeaturedDishesSection()
-        Spacer(modifier = Modifier.height(80.dp))
-    }
-}
-
-@Composable
-fun GreetingSection() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text("Xin chào, Khách hàng", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Text("Chào mừng bạn đến với lẩu SaKa!", fontSize = 14.sp, color = Color.Gray)
+    Scaffold(
+        topBar = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.White,
+                shadowElevation = 2.dp
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Xin chào!", fontSize = 14.sp, color = Color.Gray)
+                            Text("Khách hàng", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                        }
+                        Surface(
+                            color = BrandYellow.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Star, 
+                                contentDescription = null, 
+                                tint = BrandYellow, 
+                                modifier = Modifier.padding(8.dp).size(24.dp)
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                }
+            }
         }
-        Icon(Icons.Filled.Star, contentDescription = null, tint = BrandYellow, modifier = Modifier.size(32.dp))
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color(0xFFF8F9FA))
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            BannerSection()
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text("Lối tắt", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+            Spacer(modifier = Modifier.height(12.dp))
+            QuickActions(onNavigateToMenu)
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            FeaturedDishesSection()
+            Spacer(modifier = Modifier.height(100.dp))
+        }
     }
 }
 
 @Composable
 fun BannerSection() {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Image(
@@ -88,19 +110,26 @@ fun BannerSection() {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(16.dp)
+                    .padding(20.dp)
             ) {
+                Surface(
+                    color = BrandYellow,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        "KHUYẾN MÃI",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     "Đại Tiệc Bò Wagyu",
                     color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
-                )
-                Text(
-                    "Chỉ từ 199k/người",
-                    color = BrandYellow,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 24.sp
                 )
             }
         }
@@ -111,37 +140,61 @@ fun BannerSection() {
 fun QuickActions(onNavigateToMenu: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        QuickActionItem("Đặt Bàn Mới", Icons.Filled.Star, Color(0xFFFFE082)) { /* TODO */ }
-        QuickActionItem("Giao Hàng", Icons.Filled.Star, Color(0xFFE1BEE7)) { /* TODO */ }
-        QuickActionItem("Thực Đơn", Icons.Filled.RestaurantMenu, Color(0xFFC8E6C9)) { onNavigateToMenu() }
+        QuickActionItem("Đặt Bàn", Icons.Filled.Star, Color(0xFFFFE082).copy(alpha = 0.3f), modifier = Modifier.weight(1f)) { }
+        QuickActionItem("Thực Đơn", Icons.Filled.RestaurantMenu, BrandYellow.copy(alpha = 0.2f), modifier = Modifier.weight(1f)) { onNavigateToMenu() }
+        QuickActionItem("Tài Khoản", Icons.Filled.Star, Color(0xFFC8E6C9).copy(alpha = 0.3f), modifier = Modifier.weight(1f)) { }
     }
 }
 
 @Composable
-fun QuickActionItem(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, bgColor: Color, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier
-                .size(60.dp)
-                .background(bgColor, RoundedCornerShape(16.dp))
+fun QuickActionItem(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, bgColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(90.dp),
+        color = Color.White,
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 2.dp
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Icon(icon, contentDescription = title, tint = TextPrimary)
+            Surface(
+                modifier = Modifier.size(40.dp),
+                color = bgColor,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = title, tint = TextPrimary, modifier = Modifier.size(20.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
     }
 }
 
 @Composable
 fun FeaturedDishesSection() {
     Column {
-        Text("Món Phải Thử", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Món gợi ý", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+            TextButton(onClick = { }) {
+                Text("Xem tất cả", color = BrandYellow, fontWeight = FontWeight.Bold)
+            }
+        }
         Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            items(10) {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 8.dp)
+        ) {
+            items(5) {
                 DishCard()
             }
         }
@@ -151,25 +204,25 @@ fun FeaturedDishesSection() {
 @Composable
 fun DishCard() {
     Card(
-        modifier = Modifier.width(140.dp),
+        modifier = Modifier.width(160.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(16.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column {
             Image(
                 painter = painterResource(id = R.drawable.hotpot_banner),
                 contentDescription = "Dish Image",
                 modifier = Modifier
-                    .height(100.dp)
+                    .height(110.dp)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
                 contentScale = ContentScale.Crop
             )
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("Bò Mỹ Cao Cấp", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Lẩu Thái Tomyum", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary, maxLines = 1)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("69,000đ", color = BrandYellow, fontWeight = FontWeight.Bold)
+                Text("189,000đ", color = BrandYellow, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
             }
         }
     }

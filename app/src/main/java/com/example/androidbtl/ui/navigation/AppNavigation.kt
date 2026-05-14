@@ -62,6 +62,7 @@ fun AppNavigation() {
             ) {
             composable(Screen.Login.route) {
                 LoginScreen(
+                    viewModel = posViewModel,
                     onCustomerLogin = { tableId ->
                         isCustomerRole = true
                         customerTableId = tableId
@@ -85,6 +86,10 @@ fun AppNavigation() {
                     navController.navigate("staff_pos/$tableId")
                 }
             }
+            composable(Screen.KDS.route) { KitchenDisplayScreen(viewModel = posViewModel) }
+            composable(Screen.StaffMenu.route) { StaffMenuScreen(viewModel = posViewModel) }
+            composable(Screen.Billing.route) { BillingScreen(viewModel = posViewModel) }
+            
             composable(
                 route = "staff_pos/{tableId}",
                 arguments = listOf(navArgument("tableId") { type = NavType.StringType })
@@ -134,8 +139,6 @@ fun AppNavigation() {
                 BillScreen(tableId = tableId, viewModel = posViewModel)
             }
 
-            composable(Screen.KDS.route) { KitchenDisplayScreen(viewModel = posViewModel) }
-            composable(Screen.Billing.route) { BillingScreen(viewModel = posViewModel) }
             composable(Screen.CusProfile.route) { ProfileScreen() }
         }
         }

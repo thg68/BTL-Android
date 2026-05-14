@@ -1,6 +1,5 @@
 package com.example.androidbtl.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,39 +9,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.androidbtl.R
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.ui.theme.TextPrimary
+import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
 fun LoginScreen(
+    viewModel: PosViewModel,
     onCustomerLogin: (String) -> Unit,
     onStaffLogin: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
+    val tables by viewModel.tables.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray)) {
-        // Header Area with Fallback Background
+        // Header Area
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(300.dp)
                 .background(Color(0xFF2D2D2D))
         ) {
-            Text(
-                "SAKA SYSTEM",
-                modifier = Modifier.align(Alignment.Center),
-                color = Color.White.copy(alpha = 0.1f),
-                fontSize = 60.sp,
-                fontWeight = FontWeight.Black
-            )
-            
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -50,11 +41,10 @@ fun LoginScreen(
             )
         }
 
-        // Title
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 80.dp),
+                .padding(top = 100.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("SAKA SYSTEM", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -97,7 +87,13 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (selectedTab == 0) {
-                    CustomerLoginTab(onCustomerLogin)
+                    CustomerLoginTab(
+                        onLogin = onCustomerLogin,
+                        checkTableStatus = { id ->
+                            val table = tables.find { it.id == id }
+                            table?.status ?: "Trống"
+                        }
+                    )
                 } else {
                     StaffLoginTab(onStaffLogin)
                 }
@@ -107,22 +103,49 @@ fun LoginScreen(
 }
 
 @Composable
-fun CustomerLoginTab(onLogin: (String) -> Unit) {
+fun CustomerLoginTab(onLogin: (String) -> Unit, checkTableStatus: (String) -> String) {
     var tableId by remember { mutableStateOf("") }
-    
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     Column {
         Text("Chọn bàn của bạn", fontWeight = FontWeight.SemiBold, color = TextPrimary)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = tableId,
-            onValueChange = { tableId = it },
+            onValueChange = {
+                tableId = it
+                errorMessage = null
+            },
             placeholder = { Text("Ví dụ: 1") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            isError = errorMessage != null
         )
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage!!,
+                color = Color.Red,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
         Spacer(modifier = Modifier.height(24.dp))
         Button(
-            onClick = { if (tableId.isNotBlank()) onLogin(tableId) },
+            onClick = {
+                if (tableId.isNotBlank()) {
+                    val idInt = tableId.toIntOrNull()
+                    if (idInt == null || idInt !in 1..15) {
+                        errorMessage = "Vui lòng nhập số bàn hợp lệ (1-15)"
+                    } else {
+                        val status = checkTableStatus(tableId)
+                        if (status == "Đang phục vụ") {
+                            errorMessage = "Bàn $tableId hiện đã có người ngồi"
+                        } else {
+                            onLogin(tableId)
+                        }
+                    }
+                }
+            },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = BrandYellow)
         ) {

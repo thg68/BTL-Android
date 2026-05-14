@@ -33,7 +33,6 @@ class PosViewModel : ViewModel() {
     private fun seedDatabaseIfEmpty() {
         db.collection("menu_items").get()
             .addOnSuccessListener { snapshot ->
-                // Nếu thực đơn quá ít, tiến hành nạp thêm dữ liệu mẫu phong phú
                 if (snapshot.size() < 5) {
                     Log.d("PosViewModel", "Seeding more menu items...")
                     val sampleItems = listOf(
@@ -49,7 +48,6 @@ class PosViewModel : ViewModel() {
                         MenuItem(name = "Mì Udon", category = "Ăn kèm", price = 49000.0, description = "Mì Nhật Bản dai ngon")
                     )
                     sampleItems.forEach { item ->
-                        // Chỉ thêm nếu món đó chưa tồn tại trong DB (kiểm tra theo tên)
                         if (snapshot.documents.none { it.getString("name") == item.name }) {
                             db.collection("menu_items").add(item)
                         }
@@ -59,11 +57,14 @@ class PosViewModel : ViewModel() {
         
         db.collection("tables").get()
             .addOnSuccessListener { snapshot ->
-                if (snapshot.isEmpty) {
-                    Log.d("PosViewModel", "Database tables empty, seeding...")
-                    for (i in 1..6) {
-                        val table = RestaurantTable(id = i.toString(), name = "Bàn $i")
-                        db.collection("tables").document(i.toString()).set(table)
+                if (snapshot.size() < 15) {
+                    Log.d("PosViewModel", "Seeding 15 tables...")
+                    for (i in 1..15) {
+                        val tableId = i.toString()
+                        if (snapshot.documents.none { it.id == tableId }) {
+                            val table = RestaurantTable(id = tableId, name = "Bàn $tableId", status = "Trống", capacity = 4)
+                            db.collection("tables").document(tableId).set(table)
+                        }
                     }
                 }
             }
@@ -74,6 +75,7 @@ class PosViewModel : ViewModel() {
             if (e != null) return@addSnapshotListener
             if (snapshot != null) {
                 val tableList = snapshot.documents.mapNotNull { it.toObject(RestaurantTable::class.java)?.copy(id = it.id) }
+                    .sortedBy { it.id.toIntOrNull() ?: 0 }
                 _tables.value = tableList
             }
         }
@@ -110,8 +112,13 @@ class PosViewModel : ViewModel() {
         }
     }
 
+    fun updateMenuItemAvailability(menuItemId: String, isAvailable: Boolean) {
+        db.collection("menu_items").document(menuItemId).update("available", isAvailable)
+    }
+
     fun addMenuItemToOrder(orderId: String, menuItem: MenuItem) {
-        // Optimistic local update for instant UI feedback
+        if (!menuItem.isAvailable) return
+
         val currentOrders = _activeOrders.value.toMutableList()
         val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
         if (orderIdx != -1) {
@@ -167,38 +174,20 @@ class PosViewModel : ViewModel() {
     fun sendOrderToKitchen(orderId: String) {
         db.collection("orders").document(orderId).get().addOnSuccessListener { doc ->
             val order = doc.toObject(Order::class.java) ?: return@addOnSuccessListener
-            
-            // Lấy các món trong giỏ hàng để gửi xuống bếp
             val cartItems = order.items.filter { it.status == "Cart" }
-            
             if (cartItems.isEmpty()) return@addOnSuccessListener
             
-            // Cập nhật đơn hàng hiện tại: chuyển Cart -> Pending (lưu vào hóa đơn)
             val updatedItems = order.items.map { 
                 if (it.status == "Cart") it.copy(status = "Pending") else it 
             }
             
-            // Cập nhật đơn hàng hiện tại với các món đã gửi
             db.collection("orders").document(orderId).update(
-                mapOf(
-                    "items" to updatedItems,
-                    "totalAmount" to order.totalAmount
-                )
-            ).addOnSuccessListener {
-                // Tạo đơn hàng mới cho lượt gọi tiếp theo (giỏ hàng trống)
-                val newOrder = Order(
-                    tableId = order.tableId,
-                    status = "Open",
-                    items = emptyList(),
-                    totalAmount = 0.0
-                )
-                db.collection("orders").add(newOrder)
-            }
+                mapOf("items" to updatedItems)
+            )
         }
     }
 
     fun removeOrderItem(orderId: String, menuItemId: String) {
-        // Optimistic local update for instant UI feedback
         val currentOrders = _activeOrders.value.toMutableList()
         val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
         if (orderIdx != -1) {

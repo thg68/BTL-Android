@@ -37,7 +37,6 @@ fun POSOrderScreen(
     val orders by viewModel.activeOrders.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     
-    // Tìm đơn hàng đang hoạt động của bàn này
     val activeOrder = orders.find { it.tableId == tableId }
     val filteredMenuItems = if (searchQuery.isBlank()) {
         menuItems
@@ -50,39 +49,47 @@ fun POSOrderScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Order - Bàn $tableId") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
+            Column {
+                TopAppBar(
+                    title = { Text("Order - Bàn $tableId", fontWeight = FontWeight.ExtraBold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                )
+                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+            }
         },
         bottomBar = {
             Surface(
                 color = Color.White,
                 shadowElevation = 16.dp,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val cartItems = activeOrder?.items?.filter { it.status == "Cart" } ?: emptyList()
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         if (onNavigateToBooking != null && activeOrder != null) {
                             OutlinedButton(
                                 onClick = onNavigateToBooking,
-                                modifier = Modifier.height(48.dp),
-                                border = BorderStroke(1.dp, BrandYellow)
+                                modifier = Modifier.height(50.dp),
+                                border = BorderStroke(1.5.dp, BrandYellow),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("GIỎ HÀNG (${cartItems.sumOf { it.quantity }})", color = BrandYellow, fontWeight = FontWeight.Bold)
+                                Text("GIỎ HÀNG (${cartItems.sumOf { it.quantity }})", color = BrandYellow, fontWeight = FontWeight.ExtraBold)
                             }
                         }
                         Button(
@@ -91,19 +98,24 @@ fun POSOrderScreen(
                                     viewModel.createOrderForTable(tableId)
                                     onShowMessage("Đã mở bàn $tableId")
                                 } else {
-                                    val cartItems = activeOrder.items.filter { it.status == "Cart" }
-                                    if (cartItems.isNotEmpty()) {
+                                    val cart = activeOrder.items.filter { it.status == "Cart" }
+                                    if (cart.isNotEmpty()) {
                                         viewModel.sendOrderToKitchen(activeOrder.id)
-                                        onShowMessage("Đã gửi ${cartItems.sumOf { it.quantity }} món xuống bếp!")
+                                        onShowMessage("Đã gửi ${cart.sumOf { it.quantity }} món xuống bếp!")
                                     } else {
                                         onShowMessage("Giỏ hàng trống!")
                                     }
                                 }
                             },
-                            modifier = Modifier.height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = BrandYellow)
+                            modifier = Modifier.height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandYellow),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(if (activeOrder == null) "MỞ BÀN" else "GỬI BẾP", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (activeOrder == null) "MỞ BÀN" else "GỬI BẾP", 
+                                color = Color.Black, 
+                                fontWeight = FontWeight.ExtraBold
+                            )
                         }
                     }
                 }
@@ -121,10 +133,14 @@ fun POSOrderScreen(
                 onValueChange = { searchQuery = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(16.dp),
                 singleLine = true,
-                label = { Text("Tìm món") },
-                placeholder = { Text("Nhập tên món hoặc danh mục") }
+                shape = RoundedCornerShape(12.dp),
+                label = { Text("Tìm kiếm món ăn...") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = BrandYellow,
+                    unfocusedBorderColor = Color.LightGray
+                )
             )
 
             LazyColumn(
@@ -134,7 +150,7 @@ fun POSOrderScreen(
                 if (filteredMenuItems.isEmpty()) {
                     item {
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text("Đang tải thực đơn hoặc không tìm thấy món...", color = Color.Gray)
+                            Text("Chưa có món ăn nào...", color = Color.Gray)
                         }
                     }
                 }
@@ -147,6 +163,7 @@ fun POSOrderScreen(
                         }
                     }
                 }
+                item { Spacer(modifier = Modifier.height(100.dp)) }
             }
         }
     }
@@ -158,7 +175,7 @@ fun PosMenuItemCard(item: MenuItem, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -166,16 +183,17 @@ fun PosMenuItemCard(item: MenuItem, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
-                Text("${"%,.0f".format(item.price)}đ", color = BrandYellow, fontWeight = FontWeight.SemiBold)
+                Text(item.name, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
+                Text("${"%,.0f".format(item.price)}đ", color = BrandYellow, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
             }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(BrandYellow)
-                    .padding(8.dp)
+            Surface(
+                color = BrandYellow,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.size(40.dp)
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add", tint = Color.Black)
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add", tint = Color.Black)
+                }
             }
         }
     }

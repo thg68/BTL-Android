@@ -25,10 +25,9 @@ import com.example.androidbtl.viewmodel.PosViewModel
 @Composable
 fun BillScreen(tableId: String, viewModel: PosViewModel) {
     val orders by viewModel.activeOrders.collectAsState()
+    val tableOrders = orders.filter { it.tableId == tableId }
 
-    // Gộp tất cả món đã gọi (Pending/Done) từ mọi đơn của bàn này
-    val allBillItems = orders
-        .filter { it.tableId == tableId }
+    val allBillItems = tableOrders
         .flatMap { it.items }
         .filter { it.status == "Pending" || it.status == "Done" }
 
@@ -42,67 +41,104 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
 
     val totalAmount = mergedItems.sumOf { it.price * it.quantity }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
-    ) {
-        // App Bar
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = Color.White,
-            shadowElevation = 4.dp
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(Icons.Filled.Restaurant, contentDescription = "Restaurant", tint = BrandYellow, modifier = Modifier.size(32.dp))
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Hóa đơn Bàn $tableId",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-            }
-        }
-
-        if (mergedItems.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+    Scaffold(
+        bottomBar = {
+            if (mergedItems.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.White,
+                    shadowElevation = 16.dp,
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                 ) {
-                    Text(
-                        "Chưa có hóa đơn",
-                        fontSize = 18.sp,
-                        color = Color.Gray,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Bạn chưa gọi món nào",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .navigationBarsPadding()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Tổng thanh toán", fontSize = 16.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                            Text(
+                                "${"%,.0f".format(totalAmount)}đ",
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = BrandYellow
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                tableOrders.forEach { order ->
+                                    viewModel.closeOrder(order.id, tableId)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandYellow),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(
+                                "THANH TOÁN NGAY",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.Black
+                            )
+                        }
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(Color(0xFFF8F9FA))
+        ) {
+            // Distinct Top Bar
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.White,
+                shadowElevation = 2.dp
             ) {
-                item {
-                    BillOrderCard(
-                        title = "Chi tiết hóa đơn",
-                        items = mergedItems,
-                        totalAmount = totalAmount
+                Column(
+                    modifier = Modifier.padding(top = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Filled.Restaurant, contentDescription = null, tint = BrandYellow, modifier = Modifier.size(28.dp))
+                    Text(
+                        "Hóa đơn Bàn $tableId",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = TextPrimary
                     )
+                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                }
+            }
+
+            if (mergedItems.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Chưa có món ăn nào được ghi nhận", color = Color.Gray)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        BillOrderCard(
+                            title = "Chi tiết các món",
+                            items = mergedItems,
+                            totalAmount = totalAmount
+                        )
+                    }
+                    item { Spacer(modifier = Modifier.height(100.dp)) }
                 }
             }
         }
@@ -110,49 +146,24 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
 }
 
 @Composable
-fun BillOrderCard(
-    title: String,
-    items: List<OrderItem>,
-    totalAmount: Double
-) {
+fun BillOrderCard(title: String, items: List<OrderItem>, totalAmount: Double) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    "${"%,.0f".format(totalAmount)}đ",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BrandYellow
-                )
-            }
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(title, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Items list
             items.forEach { item ->
                 BillItemRow(item = item)
                 if (item != items.last()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(color = Color(0xFFEEEEEE))
-                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = Color.LightGray.copy(alpha = 0.3f)
+                    )
                 }
             }
         }
@@ -167,22 +178,13 @@ fun BillItemRow(item: OrderItem) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                item.name,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextPrimary
-            )
-            Text(
-                "x${item.quantity} × ${"%,.0f".format(item.price)}đ",
-                fontSize = 12.sp,
-                color = Color.Gray
-            )
+            Text(item.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text("x${item.quantity} × ${"%,.0f".format(item.price)}đ", fontSize = 13.sp, color = Color.Gray)
         }
         Text(
             "${"%,.0f".format(item.price * item.quantity)}đ",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.ExtraBold,
             color = BrandYellow
         )
     }

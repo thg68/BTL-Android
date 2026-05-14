@@ -1,16 +1,11 @@
 package com.example.androidbtl.ui.components
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.TableRestaurant
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.RestaurantMenu
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -33,16 +28,17 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
     object Login : Screen("login", Icons.Filled.AccountCircle, "Đăng nhập")
     
     // Staff Screens
-    object Tables : Screen("tables", Icons.Filled.TableRestaurant, "Sơ đồ bàn")
-    object KDS : Screen("kds", Icons.Filled.Restaurant, "Bếp (KDS)")
+    object Tables : Screen("tables", Icons.Filled.TableRestaurant, "Bàn")
+    object KDS : Screen("kds", Icons.Filled.Restaurant, "Bếp")
+    object StaffMenu : Screen("staff_menu", Icons.Filled.Inventory, "Món ăn")
     object Billing : Screen("billing", Icons.Filled.Payments, "Thu ngân")
-    object StaffPOS : Screen("staff_pos/{tableId}", Icons.Filled.List, "Order") 
+    object StaffPOS : Screen("staff_pos/{tableId}", Icons.AutoMirrored.Filled.List, "Order") 
 
     // Customer Screens
     object CusHome : Screen("cus_home", Icons.Filled.Home, "Trang chủ")
     object CusMenu : Screen("cus_menu", Icons.Filled.RestaurantMenu, "Thực đơn")
     object CusBill : Screen("cus_bill/{tableId}", Icons.Filled.Receipt, "Hóa đơn")
-    object CusBooking : Screen("cus_booking/{tableId}", Icons.Filled.List, "Giỏ hàng")
+    object CusBooking : Screen("cus_booking/{tableId}", Icons.AutoMirrored.Filled.List, "Giỏ hàng")
     object CusProfile : Screen("cus_profile", Icons.Filled.AccountCircle, "Tài khoản")
 }
 
@@ -51,7 +47,7 @@ fun AppBottomNavBar(navController: NavController, isCustomer: Boolean, customerT
     val items = if (isCustomer) {
         listOf(Screen.CusHome, Screen.CusMenu, Screen.CusBill, Screen.CusProfile)
     } else {
-        listOf(Screen.Tables, Screen.KDS, Screen.Billing)
+        listOf(Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Billing)
     }
 
     val navBackStackEntry = navController.currentBackStackEntryAsState().value
@@ -63,10 +59,12 @@ fun AppBottomNavBar(navController: NavController, isCustomer: Boolean, customerT
 
     NavigationBar(
         containerColor = Color.White,
+        tonalElevation = 0.dp,
         modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(8.dp, RoundedCornerShape(24.dp))
-            .clip(RoundedCornerShape(24.dp))
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .shadow(20.dp, RoundedCornerShape(32.dp))
+            .clip(RoundedCornerShape(32.dp))
+            .border(1.dp, Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
     ) {
         items.forEach { screen ->
             val routeBase = screen.route.substringBefore("/")

@@ -1,6 +1,7 @@
 package com.example.androidbtl.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -32,21 +33,25 @@ fun TableManagementScreen(viewModel: PosViewModel, onTableClick: (String, String
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
     ) {
+        // Distinct Top Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = Color.White,
-            shadowElevation = 4.dp
+            shadowElevation = 2.dp
         ) {
-            Text(
-                "Sơ đồ Bàn",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(16.dp),
-                color = TextPrimary
-            )
+            Column {
+                Text(
+                    "Sơ đồ Bàn",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                    color = TextPrimary
+                )
+                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+            }
         }
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Legend
         Row(
@@ -62,7 +67,7 @@ fun TableManagementScreen(viewModel: PosViewModel, onTableClick: (String, String
 
         if (tables.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Đang tải dữ liệu bàn từ Firebase...")
+                CircularProgressIndicator(color = BrandYellow)
             }
         } else {
             LazyVerticalGrid(
@@ -76,6 +81,7 @@ fun TableManagementScreen(viewModel: PosViewModel, onTableClick: (String, String
                         onTableClick(table.id, table.status)
                     }
                 }
+                item { Spacer(modifier = Modifier.height(100.dp)) }
             }
         }
     }
@@ -84,9 +90,14 @@ fun TableManagementScreen(viewModel: PosViewModel, onTableClick: (String, String
 @Composable
 fun LegendItem(color: Color, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(16.dp).background(color, RoundedCornerShape(4.dp)))
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(text, fontSize = 12.sp, color = TextPrimary)
+        Box(
+            modifier = Modifier
+                .size(14.dp)
+                .background(color, RoundedCornerShape(4.dp))
+                .border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text, fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -95,23 +106,42 @@ fun TableCard(table: RestaurantTable, onClick: () -> Unit) {
     val backgroundColor = when (table.status) {
         "Đang phục vụ" -> BrandYellow
         "Đã đặt" -> ActionRed
-        else -> Color.LightGray // Trống
+        else -> Color.White // Trống để màu trắng cho sang
     }
     
-    val textColor = if (table.status == "Đã đặt") Color.White else Color.Black
+    val textColor = if (table.status == "Đã đặt") Color.White else TextPrimary
+    val borderColor = if (table.status == "Trống") Color.LightGray.copy(alpha = 0.5f) else Color.Transparent
 
     Card(
         modifier = Modifier
             .aspectRatio(1f)
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(12.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(table.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = textColor)
-                Text("${table.capacity} người", fontSize = 12.sp, color = textColor.copy(alpha = 0.7f))
+                Text(
+                    table.name, 
+                    fontWeight = FontWeight.ExtraBold, 
+                    fontSize = 20.sp, 
+                    color = textColor
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    color = textColor.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        table.status, 
+                        fontSize = 10.sp, 
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        color = textColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
