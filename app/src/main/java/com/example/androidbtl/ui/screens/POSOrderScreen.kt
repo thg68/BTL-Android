@@ -1,5 +1,6 @@
 package com.example.androidbtl.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,15 +8,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,12 +26,18 @@ import com.example.androidbtl.viewmodel.PosViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun POSOrderScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit) {
+fun POSOrderScreen(
+    tableId: String,
+    viewModel: PosViewModel,
+    onNavigateToBooking: (() -> Unit)? = null,
+    onBack: () -> Unit,
+    onShowMessage: (String) -> Unit = {}
+) {
     val menuItems by viewModel.menuItems.collectAsState()
     val orders by viewModel.activeOrders.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     
-    // Find active order for this table
+    // Tìm đơn hàng đang hoạt động của bàn này
     val activeOrder = orders.find { it.tableId == tableId }
     val filteredMenuItems = if (searchQuery.isBlank()) {
         menuItems
@@ -52,7 +54,7 @@ fun POSOrderScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit)
                 title = { Text("Order - Bàn $tableId") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -66,25 +68,43 @@ fun POSOrderScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text("Tổng cộng: ${activeOrder?.items?.size ?: 0} món", color = Color.Gray)
-                        Text(
-                            "${activeOrder?.totalAmount ?: 0.0}đ",
-                            color = BrandYellow,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        )
-                    }
-                    Button(
-                        onClick = { /* Implement Open/Confirm logic */ 
-                            if (activeOrder == null) viewModel.createOrderForTable(tableId)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandYellow)
+                    val cartItems = activeOrder?.items?.filter { it.status == "Cart" } ?: emptyList()
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(if (activeOrder == null) "MỞ BÀN" else "GỬI BẾP", color = Color.Black)
+                        if (onNavigateToBooking != null && activeOrder != null) {
+                            OutlinedButton(
+                                onClick = onNavigateToBooking,
+                                modifier = Modifier.height(48.dp),
+                                border = BorderStroke(1.dp, BrandYellow)
+                            ) {
+                                Text("GIỎ HÀNG (${cartItems.sumOf { it.quantity }})", color = BrandYellow, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Button(
+                            onClick = {
+                                if (activeOrder == null) {
+                                    viewModel.createOrderForTable(tableId)
+                                    onShowMessage("Đã mở bàn $tableId")
+                                } else {
+                                    val cartItems = activeOrder.items.filter { it.status == "Cart" }
+                                    if (cartItems.isNotEmpty()) {
+                                        viewModel.sendOrderToKitchen(activeOrder.id)
+                                        onShowMessage("Đã gửi ${cartItems.sumOf { it.quantity }} món xuống bếp!")
+                                    } else {
+                                        onShowMessage("Giỏ hàng trống!")
+                                    }
+                                }
+                            },
+                            modifier = Modifier.height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandYellow)
+                        ) {
+                            Text(if (activeOrder == null) "MỞ BÀN" else "GỬI BẾP", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -111,12 +131,19 @@ fun POSOrderScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit)
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (filteredMenuItems.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("Đang tải thực đơn hoặc không tìm thấy món...", color = Color.Gray)
+                        }
+                    }
+                }
                 items(filteredMenuItems) { item ->
                     PosMenuItemCard(item) {
                         if (activeOrder != null) {
                             viewModel.addMenuItemToOrder(activeOrder.id, item)
                         } else {
-                            // Needs open table first
+                            onShowMessage("Vui lòng nhấn 'MỞ BÀN' trước!")
                         }
                     }
                 }
@@ -130,16 +157,17 @@ fun PosMenuItemCard(item: MenuItem, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(item.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
-                Text("${item.price}đ", color = BrandYellow, fontWeight = FontWeight.SemiBold)
+                Text("${"%,.0f".format(item.price)}đ", color = BrandYellow, fontWeight = FontWeight.SemiBold)
             }
             Box(
                 modifier = Modifier

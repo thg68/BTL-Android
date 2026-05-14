@@ -25,7 +25,7 @@ fun LoginScreen(
     onCustomerLogin: (String) -> Unit,
     onStaffLogin: () -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Customer, 1 = Staff
+    var selectedTab by remember { mutableStateOf(0) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray)) {
         // Header Area with Fallback Background
@@ -33,12 +33,10 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(300.dp)
-                .background(Color(0xFF2D2D2D)) // Màu nền tối thay cho ảnh nếu bị lỗi
+                .background(Color(0xFF2D2D2D))
         ) {
-            // Chỉ hiển thị ảnh nếu nó không gây crash, ở đây tôi dùng fallback là Box màu
-            // Bạn nên kiểm tra lại file res/drawable/hotpot_banner.jpg
             Text(
-                "KICHI-KICHI",
+                "SAKA SYSTEM",
                 modifier = Modifier.align(Alignment.Center),
                 color = Color.White.copy(alpha = 0.1f),
                 fontSize = 60.sp,
@@ -59,7 +57,7 @@ fun LoginScreen(
                 .padding(top = 80.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("LẨU KICHI", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("SAKA SYSTEM", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Text("Hệ thống quản lý nhà hàng", color = BrandYellow)
         }
 

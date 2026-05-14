@@ -79,7 +79,7 @@ fun KdsColumn(orders: List<com.example.androidbtl.data.models.Order>, targetStat
             itemsIndexed(order.items) { index, item ->
                 if (item.status == targetStatus) {
                     Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onItemClick(order.id, index) },
+                        modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
@@ -87,6 +87,22 @@ fun KdsColumn(orders: List<com.example.androidbtl.data.models.Order>, targetStat
                             Text(item.name, fontWeight = FontWeight.Bold)
                             Text("Bàn: ${order.tableId}", color = Color.Gray, fontSize = 12.sp)
                             Text("x${item.quantity}", color = BrandYellow, fontWeight = FontWeight.Bold)
+                            
+                            if (targetStatus != "Done") {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = { onItemClick(order.id, index) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (targetStatus == "Pending") ActionRed else BrandYellow
+                                    )
+                                ) {
+                                    Text(
+                                        if (targetStatus == "Pending") "Xác nhận nấu" else "Nấu xong",
+                                        color = if (targetStatus == "Pending") Color.White else Color.Black
+                                    )
+                                }
+                            }
                         }
                     }
                 }

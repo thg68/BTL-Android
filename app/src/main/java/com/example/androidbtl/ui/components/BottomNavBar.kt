@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.TableRestaurant
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -40,13 +41,15 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
     // Customer Screens
     object CusHome : Screen("cus_home", Icons.Filled.Home, "Trang chủ")
     object CusMenu : Screen("cus_menu", Icons.Filled.RestaurantMenu, "Thực đơn")
+    object CusBill : Screen("cus_bill/{tableId}", Icons.Filled.Receipt, "Hóa đơn")
+    object CusBooking : Screen("cus_booking/{tableId}", Icons.Filled.List, "Giỏ hàng")
     object CusProfile : Screen("cus_profile", Icons.Filled.AccountCircle, "Tài khoản")
 }
 
 @Composable
-fun AppBottomNavBar(navController: NavController, isCustomer: Boolean) {
+fun AppBottomNavBar(navController: NavController, isCustomer: Boolean, customerTableId: String = "") {
     val items = if (isCustomer) {
-        listOf(Screen.CusHome, Screen.CusMenu, Screen.CusProfile)
+        listOf(Screen.CusHome, Screen.CusMenu, Screen.CusBill, Screen.CusProfile)
     } else {
         listOf(Screen.Tables, Screen.KDS, Screen.Billing)
     }
@@ -74,7 +77,12 @@ fun AppBottomNavBar(navController: NavController, isCustomer: Boolean) {
                 label = { Text(screen.title) },
                 selected = currentBase == routeBase,
                 onClick = {
-                    navController.navigate(screen.route) {
+                    val targetRoute = if (screen == Screen.CusBill && customerTableId.isNotBlank()) {
+                        "cus_bill/$customerTableId"
+                    } else {
+                        screen.route
+                    }
+                    navController.navigate(targetRoute) {
                         popUpTo(navController.graph.startDestinationId) { saveState = true }
                         launchSingleTop = true
                         restoreState = true

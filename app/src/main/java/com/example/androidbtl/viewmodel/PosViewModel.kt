@@ -27,14 +27,51 @@ class PosViewModel : ViewModel() {
         listenToTables()
         listenToMenuItems()
         listenToActiveOrders()
+        seedDatabaseIfEmpty()
+    }
+
+    private fun seedDatabaseIfEmpty() {
+        db.collection("menu_items").get()
+            .addOnSuccessListener { snapshot ->
+                // Nếu thực đơn quá ít, tiến hành nạp thêm dữ liệu mẫu phong phú
+                if (snapshot.size() < 5) {
+                    Log.d("PosViewModel", "Seeding more menu items...")
+                    val sampleItems = listOf(
+                        MenuItem(name = "Bò Wagyu A5", category = "Thịt bò", price = 299000.0, description = "Thịt bò Wagyu Nhật Bản thượng hạng"),
+                        MenuItem(name = "Bò Mỹ Thăn Nội", category = "Thịt bò", price = 189000.0, description = "Thăn nội bò Mỹ cao cấp"),
+                        MenuItem(name = "Ba Chỉ Lợn Iberico", category = "Thịt lợn", price = 169000.0, description = "Ba chỉ lợn đen Tây Ban Nha"),
+                        MenuItem(name = "Lợn Mán Nướng", category = "Thịt lợn", price = 139000.0, description = "Thịt lợn mán tươi ngon"),
+                        MenuItem(name = "Tôm Hùm Alaska", category = "Hải sản", price = 599000.0, description = "Tôm hùm tươi sống nhập khẩu"),
+                        MenuItem(name = "Cua Hoàng Đế", category = "Hải sản", price = 459000.0, description = "Cua hoàng đế Canada"),
+                        MenuItem(name = "Nấm Kim Châm", category = "Rau nấm", price = 49000.0, description = "Nấm tươi sạch mỗi ngày"),
+                        MenuItem(name = "Lẩu Tứ Xuyên", category = "Nước lẩu", price = 99000.0, description = "Nước lẩu cay nồng đặc trưng"),
+                        MenuItem(name = "Lẩu Nấm", category = "Nước lẩu", price = 89000.0, description = "Nước lẩu nấm thanh đạm"),
+                        MenuItem(name = "Mì Udon", category = "Ăn kèm", price = 49000.0, description = "Mì Nhật Bản dai ngon")
+                    )
+                    sampleItems.forEach { item ->
+                        // Chỉ thêm nếu món đó chưa tồn tại trong DB (kiểm tra theo tên)
+                        if (snapshot.documents.none { it.getString("name") == item.name }) {
+                            db.collection("menu_items").add(item)
+                        }
+                    }
+                }
+            }
+        
+        db.collection("tables").get()
+            .addOnSuccessListener { snapshot ->
+                if (snapshot.isEmpty) {
+                    Log.d("PosViewModel", "Database tables empty, seeding...")
+                    for (i in 1..6) {
+                        val table = RestaurantTable(id = i.toString(), name = "Bàn $i")
+                        db.collection("tables").document(i.toString()).set(table)
+                    }
+                }
+            }
     }
 
     private fun listenToTables() {
         db.collection("tables").addSnapshotListener { snapshot, e ->
-            if (e != null) {
-                Log.w("PosViewModel", "Listen failed.", e)
-                return@addSnapshotListener
-            }
+            if (e != null) return@addSnapshotListener
             if (snapshot != null) {
                 val tableList = snapshot.documents.mapNotNull { it.toObject(RestaurantTable::class.java)?.copy(id = it.id) }
                 _tables.value = tableList
@@ -74,36 +111,37 @@ class PosViewModel : ViewModel() {
     }
 
     fun addMenuItemToOrder(orderId: String, menuItem: MenuItem) {
-        val orderRef = db.collection("orders").document(orderId)
+        // Optimistic local update for instant UI feedback
+        val currentOrders = _activeOrders.value.toMutableList()
+        val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
+        if (orderIdx != -1) {
+            val order = currentOrders[orderIdx]
+            val updatedItems = order.items.toMutableList()
+            val existingIdx = updatedItems.indexOfFirst { it.menuItemId == menuItem.id && it.status == "Cart" }
+            if (existingIdx >= 0) {
+                val existingItem = updatedItems[existingIdx]
+                updatedItems[existingIdx] = existingItem.copy(quantity = existingItem.quantity + 1)
+            } else {
+                updatedItems.add(OrderItem(menuItemId = menuItem.id, name = menuItem.name, quantity = 1, price = menuItem.price, status = "Cart"))
+            }
+            currentOrders[orderIdx] = order.copy(items = updatedItems, totalAmount = order.totalAmount + menuItem.price)
+            _activeOrders.value = currentOrders
+        }
 
+        val orderRef = db.collection("orders").document(orderId)
         db.runTransaction { transaction ->
             val snapshot = transaction.get(orderRef)
             val order = snapshot.toObject(Order::class.java) ?: return@runTransaction
-
-            val existingIndex = order.items.indexOfFirst {
-                it.menuItemId == menuItem.id && it.status == "Pending"
-            }
-
+            val existingIndex = order.items.indexOfFirst { it.menuItemId == menuItem.id && it.status == "Cart" }
             val updatedItems = order.items.toMutableList()
             if (existingIndex >= 0) {
                 val existingItem = updatedItems[existingIndex]
                 updatedItems[existingIndex] = existingItem.copy(quantity = existingItem.quantity + 1)
             } else {
-                updatedItems.add(
-                    OrderItem(
-                        menuItemId = menuItem.id,
-                        name = menuItem.name,
-                        quantity = 1,
-                        price = menuItem.price,
-                        status = "Pending"
-                    )
-                )
+                updatedItems.add(OrderItem(menuItemId = menuItem.id, name = menuItem.name, quantity = 1, price = menuItem.price, status = "Cart"))
             }
-
             val newTotal = order.totalAmount + menuItem.price
             transaction.update(orderRef, mapOf("items" to updatedItems, "totalAmount" to newTotal))
-        }.addOnFailureListener { e ->
-            Log.w("PosViewModel", "Failed to add menu item to order", e)
         }
     }
 
@@ -123,6 +161,67 @@ class PosViewModel : ViewModel() {
     fun closeOrder(orderId: String, tableId: String) {
         db.collection("orders").document(orderId).update("status", "Closed").addOnSuccessListener {
             updateTableStatus(tableId, "Trống")
+        }
+    }
+
+    fun sendOrderToKitchen(orderId: String) {
+        db.collection("orders").document(orderId).get().addOnSuccessListener { doc ->
+            val order = doc.toObject(Order::class.java) ?: return@addOnSuccessListener
+            
+            // Lấy các món trong giỏ hàng để gửi xuống bếp
+            val cartItems = order.items.filter { it.status == "Cart" }
+            
+            if (cartItems.isEmpty()) return@addOnSuccessListener
+            
+            // Cập nhật đơn hàng hiện tại: chuyển Cart -> Pending (lưu vào hóa đơn)
+            val updatedItems = order.items.map { 
+                if (it.status == "Cart") it.copy(status = "Pending") else it 
+            }
+            
+            // Cập nhật đơn hàng hiện tại với các món đã gửi
+            db.collection("orders").document(orderId).update(
+                mapOf(
+                    "items" to updatedItems,
+                    "totalAmount" to order.totalAmount
+                )
+            ).addOnSuccessListener {
+                // Tạo đơn hàng mới cho lượt gọi tiếp theo (giỏ hàng trống)
+                val newOrder = Order(
+                    tableId = order.tableId,
+                    status = "Open",
+                    items = emptyList(),
+                    totalAmount = 0.0
+                )
+                db.collection("orders").add(newOrder)
+            }
+        }
+    }
+
+    fun removeOrderItem(orderId: String, menuItemId: String) {
+        // Optimistic local update for instant UI feedback
+        val currentOrders = _activeOrders.value.toMutableList()
+        val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
+        if (orderIdx != -1) {
+            val order = currentOrders[orderIdx]
+            val mutableItems = order.items.toMutableList()
+            val itemIdx = mutableItems.indexOfFirst { it.menuItemId == menuItemId && it.status == "Cart" }
+            if (itemIdx != -1) {
+                val removed = mutableItems.removeAt(itemIdx)
+                val newTotal = order.totalAmount - (removed.price * removed.quantity)
+                currentOrders[orderIdx] = order.copy(items = mutableItems, totalAmount = newTotal)
+                _activeOrders.value = currentOrders
+            }
+        }
+
+        db.collection("orders").document(orderId).get().addOnSuccessListener { doc ->
+            val order = doc.toObject(Order::class.java) ?: return@addOnSuccessListener
+            val mutableItems = order.items.toMutableList()
+            val itemIdx = mutableItems.indexOfFirst { it.menuItemId == menuItemId && it.status == "Cart" }
+            if (itemIdx != -1) {
+                val removed = mutableItems.removeAt(itemIdx)
+                val newTotal = order.totalAmount - (removed.price * removed.quantity)
+                db.collection("orders").document(orderId).update(mapOf("items" to mutableItems, "totalAmount" to newTotal))
+            }
         }
     }
 }

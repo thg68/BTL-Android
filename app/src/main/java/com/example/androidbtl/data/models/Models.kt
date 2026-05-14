@@ -1,5 +1,7 @@
 package com.example.androidbtl.data.models
 
+import com.google.firebase.firestore.PropertyName
+
 data class RestaurantTable(
     val id: String = "",
     val name: String = "",
@@ -12,7 +14,10 @@ data class MenuItem(
     val name: String = "",
     val category: String = "",
     val price: Double = 0.0,
-    val isAvailable: Boolean = true
+    @get:PropertyName("available")
+    @set:PropertyName("available")
+    var isAvailable: Boolean = true,
+    val description: String = ""
 )
 
 data class OrderItem(
@@ -20,7 +25,7 @@ data class OrderItem(
     val name: String = "",
     val quantity: Int = 1,
     val price: Double = 0.0,
-    val status: String = "Pending" // Pending, Cooking, Done
+    val status: String = "Pending" // Pending, Cooking, Done, Cart
 )
 
 data class Order(

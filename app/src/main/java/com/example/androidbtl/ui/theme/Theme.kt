@@ -43,7 +43,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun AndroidBTLTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false, // Force light mode
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) {
