@@ -1,38 +1,45 @@
 package com.example.androidbtl.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.theme.ActionGreen
+import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.TextPrimary
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
 fun KitchenDisplayScreen(viewModel: PosViewModel) {
     val orders by viewModel.activeOrders.collectAsState()
+    val hasAnyItem = orders.any { it.items.any { i -> i.status in listOf("Pending", "Cooking", "Done") } }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Distinct Top Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 2.dp
         ) {
             Column {
@@ -41,13 +48,12 @@ fun KitchenDisplayScreen(viewModel: PosViewModel) {
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             }
         }
 
-        // Column Titles
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -59,36 +65,27 @@ fun KitchenDisplayScreen(viewModel: PosViewModel) {
             KdsHeader(title = "HOÀN TẤT", color = ActionGreen, modifier = Modifier.weight(1f))
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Pending Column
-            KdsColumn(
-                orders = orders,
-                targetStatus = "Pending",
-                modifier = Modifier.weight(1f)
-            ) { orderId, index ->
-                viewModel.updateOrderItemStatus(orderId, index, "Cooking")
+        if (!hasAnyItem) {
+            EmptyState(
+                icon = Icons.Filled.RestaurantMenu,
+                title = "Chưa có món nào cần xử lý",
+                description = "Khi khách gửi món sẽ tự xuất hiện ở đây"
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                KdsColumn(orders = orders, targetStatus = "Pending", modifier = Modifier.weight(1f)) { orderId, index ->
+                    viewModel.updateOrderItemStatus(orderId, index, "Cooking")
+                }
+                KdsColumn(orders = orders, targetStatus = "Cooking", modifier = Modifier.weight(1f)) { orderId, index ->
+                    viewModel.updateOrderItemStatus(orderId, index, "Done")
+                }
+                KdsColumn(orders = orders, targetStatus = "Done", modifier = Modifier.weight(1f)) { _, _ -> }
             }
-            
-            // Cooking Column
-            KdsColumn(
-                orders = orders,
-                targetStatus = "Cooking",
-                modifier = Modifier.weight(1f)
-            ) { orderId, index ->
-                viewModel.updateOrderItemStatus(orderId, index, "Done")
-            }
-
-            // Done Column
-            KdsColumn(
-                orders = orders,
-                targetStatus = "Done",
-                modifier = Modifier.weight(1f)
-            ) { _, _ -> }
         }
     }
 }
@@ -96,7 +93,7 @@ fun KitchenDisplayScreen(viewModel: PosViewModel) {
 @Composable
 fun KdsHeader(title: String, color: Color, modifier: Modifier = Modifier) {
     Surface(
-        color = color.copy(alpha = 0.1f),
+        color = color.copy(alpha = 0.15f),
         shape = RoundedCornerShape(8.dp),
         modifier = modifier
     ) {
@@ -111,8 +108,6 @@ fun KdsHeader(title: String, color: Color, modifier: Modifier = Modifier) {
     }
 }
 
-val ActionRed = Color(0xFFE53935)
-
 @Composable
 fun KdsColumn(
     orders: List<com.example.androidbtl.data.models.Order>,
@@ -126,11 +121,15 @@ fun KdsColumn(
         contentPadding = PaddingValues(bottom = 100.dp)
     ) {
         orders.forEach { order ->
-            itemsIndexed(order.items) { index, item ->
-                if (item.status == targetStatus) {
+            itemsIndexed(order.items, key = { idx, _ -> "${order.id}_$idx" }) { index, item ->
+                AnimatedVisibility(
+                    visible = item.status == targetStatus,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut()
+                ) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -139,9 +138,14 @@ fun KdsColumn(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+                                Text(
+                                    item.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                                 Surface(
-                                    color = BrandYellow.copy(alpha = 0.1f),
+                                    color = BrandYellow.copy(alpha = 0.15f),
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
@@ -153,13 +157,19 @@ fun KdsColumn(
                                     )
                                 }
                             }
-                            Text("Bàn: ${order.tableId}", color = Color.Gray, fontSize = 11.sp)
-                            
+                            Text(
+                                "Bàn: ${order.tableId}",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp
+                            )
+
                             if (targetStatus != "Done") {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Button(
                                     onClick = { onItemClick(order.id, index) },
-                                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(36.dp),
                                     contentPadding = PaddingValues(0.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = if (targetStatus == "Pending") ActionRed else BrandYellow

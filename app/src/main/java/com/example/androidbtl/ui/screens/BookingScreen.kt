@@ -1,5 +1,10 @@
 package com.example.androidbtl.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,20 +23,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import com.example.androidbtl.data.models.Order
 import com.example.androidbtl.data.models.OrderItem
+import com.example.androidbtl.ui.components.AsyncFoodImage
+import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.TextPrimary
-import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
-fun BookingScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit, onShowMessage: (String) -> Unit = {}) {
+fun BookingScreen(
+    tableId: String,
+    viewModel: PosViewModel,
+    onBack: () -> Unit,
+    onShowMessage: (String) -> Unit = {}
+) {
     val orders by viewModel.activeOrders.collectAsState()
-    var showCartDialog by remember { mutableStateOf(false) }
-    
-    // Tìm đơn hàng đang hoạt động của bàn này
+    val menuItems by viewModel.menuItems.collectAsState()
+
     val activeOrder = orders.find { it.tableId == tableId && it.status == "Open" }
     val cartItems = activeOrder?.items?.filter { it.status == "Cart" } ?: emptyList()
     val totalAmount = cartItems.sumOf { it.price * it.quantity }
@@ -38,12 +46,11 @@ fun BookingScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit, 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // App Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 4.dp
         ) {
             Text(
@@ -51,53 +58,70 @@ fun BookingScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit, 
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(16.dp),
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            if (cartItems.isEmpty()) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("Giỏ hàng trống", color = Color.Gray)
-                    }
+        if (cartItems.isEmpty()) {
+            Box(modifier = Modifier.weight(1f)) {
+                EmptyState(
+                    icon = Icons.Filled.ShoppingCart,
+                    title = "Giỏ hàng trống",
+                    description = "Hãy chọn món yêu thích để thêm vào giỏ!"
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(cartItems) { item ->
+                    val imageUrl = menuItems.find { it.id == item.menuItemId }?.imageUrl.orEmpty()
+                    CartItemCard(
+                        item = item,
+                        imageUrl = imageUrl,
+                        onDelete = {
+                            activeOrder?.let { viewModel.removeOrderItem(it.id, item.menuItemId) }
+                        }
+                    )
                 }
-            }
-            
-            items(cartItems) { item ->
-                CartItemCard(item = item, onDelete = {
-                    activeOrder?.let { viewModel.removeOrderItem(it.id, item.menuItemId) }
-                })
-            }
-            
-            if (cartItems.isNotEmpty()) {
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Tổng cộng", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("${"%,.0f".format(totalAmount)}đ", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = BrandYellow)
+                        Text(
+                            "Tổng cộng",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            "${"%,.0f".format(totalAmount)}đ",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 18.sp,
+                            color = BrandYellow
+                        )
                     }
                 }
             }
         }
 
-        // Bottom Actions
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 16.dp
         ) {
-            Column(modifier = Modifier.padding(16.dp).padding(bottom = 16.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .padding(bottom = 16.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -110,16 +134,21 @@ fun BookingScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit, 
                         border = BorderStroke(1.dp, BrandYellow),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("TIẾP TỤC CHỌN", color = BrandYellow, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "TIẾP TỤC CHỌN",
+                            color = BrandYellow,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                     Button(
-                        onClick = { 
+                        onClick = {
                             if (cartItems.isNotEmpty()) {
-                                activeOrder?.let { 
+                                activeOrder?.let {
                                     viewModel.sendOrderToKitchen(it.id)
                                     onShowMessage("Đã gửi ${cartItems.sumOf { it.quantity }} món xuống bếp!")
                                 }
-                                onBack() 
+                                onBack()
                             }
                         },
                         modifier = Modifier
@@ -129,7 +158,12 @@ fun BookingScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit, 
                         shape = RoundedCornerShape(12.dp),
                         enabled = cartItems.isNotEmpty()
                     ) {
-                        Text("GỬI BẾP", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "GỬI BẾP",
+                            color = Color.Black,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -138,10 +172,10 @@ fun BookingScreen(tableId: String, viewModel: PosViewModel, onBack: () -> Unit, 
 }
 
 @Composable
-fun CartItemCard(item: OrderItem, onDelete: () -> Unit) {
+fun CartItemCard(item: OrderItem, imageUrl: String, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -151,24 +185,40 @@ fun CartItemCard(item: OrderItem, onDelete: () -> Unit) {
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
+            AsyncFoodImage(
+                imageUrl = imageUrl,
+                contentDescription = item.name,
                 modifier = Modifier
                     .size(60.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFEEEEEE)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(item.name.take(1), fontWeight = FontWeight.Bold, color = Color.Gray)
-            }
+            )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${"%,.0f".format(item.price)}đ", color = BrandYellow, fontWeight = FontWeight.Bold)
+                Text(
+                    item.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    "${"%,.0f".format(item.price)}đ",
+                    color = BrandYellow,
+                    fontWeight = FontWeight.Bold
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("x${item.quantity}", fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 8.dp))
+                Text(
+                    "x${item.quantity}",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = ActionRed)
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
                 }
             }
         }

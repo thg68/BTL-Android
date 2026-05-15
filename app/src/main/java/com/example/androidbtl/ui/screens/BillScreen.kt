@@ -3,23 +3,21 @@ package com.example.androidbtl.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.androidbtl.data.models.Order
 import com.example.androidbtl.data.models.OrderItem
+import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.TextPrimary
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
@@ -42,11 +40,12 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
     val totalAmount = mergedItems.sumOf { it.price * it.quantity }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (mergedItems.isNotEmpty()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 16.dp,
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                 ) {
@@ -60,7 +59,12 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Tổng thanh toán", fontSize = 16.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                            Text(
+                                "Tổng thanh toán",
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
                             Text(
                                 "${"%,.0f".format(totalAmount)}đ",
                                 fontSize = 26.sp,
@@ -97,34 +101,40 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF8F9FA))
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            // Distinct Top Bar
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp
             ) {
                 Column(
                     modifier = Modifier.padding(top = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Filled.Restaurant, contentDescription = null, tint = BrandYellow, modifier = Modifier.size(28.dp))
+                    Icon(
+                        Icons.Filled.Restaurant,
+                        contentDescription = null,
+                        tint = BrandYellow,
+                        modifier = Modifier.size(28.dp)
+                    )
                     Text(
                         "Hóa đơn Bàn $tableId",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(vertical = 12.dp),
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 }
             }
 
             if (mergedItems.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Chưa có món ăn nào được ghi nhận", color = Color.Gray)
-                }
+                EmptyState(
+                    icon = Icons.Filled.Receipt,
+                    title = "Chưa có món ăn nào",
+                    description = "Hoá đơn sẽ hiện khi món được gửi xuống bếp"
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -134,8 +144,7 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
                     item {
                         BillOrderCard(
                             title = "Chi tiết các món",
-                            items = mergedItems,
-                            totalAmount = totalAmount
+                            items = mergedItems
                         )
                     }
                     item { Spacer(modifier = Modifier.height(100.dp)) }
@@ -146,15 +155,20 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
 }
 
 @Composable
-fun BillOrderCard(title: String, items: List<OrderItem>, totalAmount: Double) {
+fun BillOrderCard(title: String, items: List<OrderItem>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+            Text(
+                title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
             items.forEach { item ->
@@ -162,7 +176,7 @@ fun BillOrderCard(title: String, items: List<OrderItem>, totalAmount: Double) {
                 if (item != items.last()) {
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 12.dp),
-                        color = Color.LightGray.copy(alpha = 0.3f)
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                     )
                 }
             }
@@ -178,8 +192,17 @@ fun BillItemRow(item: OrderItem) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Text("x${item.quantity} × ${"%,.0f".format(item.price)}đ", fontSize = 13.sp, color = Color.Gray)
+            Text(
+                item.name,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "x${item.quantity} × ${"%,.0f".format(item.price)}đ",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Text(
             "${"%,.0f".format(item.price * item.quantity)}đ",

@@ -14,7 +14,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.TextPrimary
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
@@ -26,19 +25,14 @@ fun LoginScreen(
     var selectedTab by remember { mutableStateOf(0) }
     val tables by viewModel.tables.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray)) {
-        // Header Area
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A1A))) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(300.dp)
                 .background(Color(0xFF2D2D2D))
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f))
-            )
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
         }
 
         Column(
@@ -51,13 +45,12 @@ fun LoginScreen(
             Text("Hệ thống quản lý nhà hàng", color = BrandYellow)
         }
 
-        // Login Card
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
         ) {
             Column(
@@ -66,21 +59,32 @@ fun LoginScreen(
                     .padding(24.dp)
                     .padding(bottom = 32.dp)
             ) {
-                // Tabs
                 TabRow(
                     selectedTabIndex = selectedTab,
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = BrandYellow
                 ) {
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { Text("KHÁCH HÀNG", color = if (selectedTab == 0) BrandYellow else Color.Gray, fontWeight = FontWeight.Bold) }
+                        text = {
+                            Text(
+                                "KHÁCH HÀNG",
+                                color = if (selectedTab == 0) BrandYellow else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     )
                     Tab(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { Text("NHÂN VIÊN", color = if (selectedTab == 1) BrandYellow else Color.Gray, fontWeight = FontWeight.Bold) }
+                        text = {
+                            Text(
+                                "NHÂN VIÊN",
+                                color = if (selectedTab == 1) BrandYellow else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     )
                 }
 
@@ -108,7 +112,11 @@ fun CustomerLoginTab(onLogin: (String) -> Unit, checkTableStatus: (String) -> St
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Column {
-        Text("Chọn bàn của bạn", fontWeight = FontWeight.SemiBold, color = TextPrimary)
+        Text(
+            "Chọn bàn của bạn",
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = tableId,
@@ -119,12 +127,25 @@ fun CustomerLoginTab(onLogin: (String) -> Unit, checkTableStatus: (String) -> St
             placeholder = { Text("Ví dụ: 1") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            isError = errorMessage != null
+            isError = errorMessage != null,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = BrandYellow,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            )
         )
+        val currentStatus = tableId.toIntOrNull()?.let { checkTableStatus(tableId) } ?: ""
+        if (currentStatus == "Đang phục vụ") {
+            Text(
+                text = "Bàn $tableId đang phục vụ — bạn sẽ tiếp tục đơn hàng hiện tại",
+                color = BrandYellow,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
         if (errorMessage != null) {
             Text(
                 text = errorMessage!!,
-                color = Color.Red,
+                color = MaterialTheme.colorScheme.tertiary,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 4.dp)
             )
@@ -138,18 +159,24 @@ fun CustomerLoginTab(onLogin: (String) -> Unit, checkTableStatus: (String) -> St
                         errorMessage = "Vui lòng nhập số bàn hợp lệ (1-15)"
                     } else {
                         val status = checkTableStatus(tableId)
-                        if (status == "Đang phục vụ") {
-                            errorMessage = "Bàn $tableId hiện đã có người ngồi"
+                        if (status == "Đã đặt") {
+                            errorMessage = "Bàn $tableId đã được đặt trước, vui lòng chọn bàn khác"
                         } else {
                             onLogin(tableId)
                         }
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = BrandYellow)
         ) {
-            Text("BẮT ĐẦU GỌI MÓN", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text(
+                if (currentStatus == "Đang phục vụ") "TIẾP TỤC GỌI MÓN" else "BẮT ĐẦU GỌI MÓN",
+                color = Color.Black,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -166,7 +193,11 @@ fun StaffLoginTab(onLogin: () -> Unit) {
             onValueChange = { username = it; showError = false },
             label = { Text("Tên đăng nhập") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = BrandYellow,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            )
         )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
@@ -175,10 +206,19 @@ fun StaffLoginTab(onLogin: () -> Unit) {
             label = { Text("Mật khẩu") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = BrandYellow,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            )
         )
         if (showError) {
-            Text("Sai tài khoản hoặc mật khẩu (Dùng: admin/123)", color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                "Sai tài khoản hoặc mật khẩu (Dùng: admin/123)",
+                color = MaterialTheme.colorScheme.tertiary,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
         Spacer(modifier = Modifier.height(24.dp))
         Button(
@@ -189,7 +229,9 @@ fun StaffLoginTab(onLogin: () -> Unit) {
                     showError = true
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
         ) {
             Text("ĐĂNG NHẬP HỆ THỐNG", color = Color.White, fontWeight = FontWeight.Bold)

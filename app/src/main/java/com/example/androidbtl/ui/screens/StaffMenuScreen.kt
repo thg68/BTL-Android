@@ -5,32 +5,38 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androidbtl.data.models.MenuItem
+import com.example.androidbtl.ui.components.AsyncFoodImage
+import com.example.androidbtl.ui.components.EmptyState
+import com.example.androidbtl.ui.components.MenuItemSkeleton
+import com.example.androidbtl.ui.theme.ActionGreen
+import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.TextPrimary
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
 fun StaffMenuScreen(viewModel: PosViewModel) {
     val menuItems by viewModel.menuItems.collectAsState()
+    val isLoading by viewModel.isLoadingMenu.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Top Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 2.dp
         ) {
             Column {
@@ -39,31 +45,51 @@ fun StaffMenuScreen(viewModel: PosViewModel) {
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             }
         }
 
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(menuItems) { item ->
-                StaffMenuItemCard(item) { isAvailable ->
-                    viewModel.updateMenuItemAvailability(item.id, isAvailable)
+        when {
+            isLoading -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(6) { MenuItemSkeleton() }
                 }
             }
-            item { Spacer(modifier = Modifier.height(100.dp)) }
+            menuItems.isEmpty() -> {
+                EmptyState(
+                    icon = Icons.Filled.Inventory,
+                    title = "Chưa có món ăn nào",
+                    description = "Dữ liệu mẫu đang được tự khởi tạo"
+                )
+            }
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(menuItems) { item ->
+                        StaffMenuItemCard(item) { isAvailable ->
+                            viewModel.updateMenuItemAvailability(item.id, isAvailable)
+                        }
+                    }
+                    item { Spacer(modifier = Modifier.height(100.dp)) }
+                }
+            }
         }
     }
 }
 
 @Composable
 fun StaffMenuItemCard(item: MenuItem, onAvailabilityChange: (Boolean) -> Unit) {
+    val mutedAlpha = if (item.isAvailable) 1f else 0.45f
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -72,25 +98,33 @@ fun StaffMenuItemCard(item: MenuItem, onAvailabilityChange: (Boolean) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            AsyncFoodImage(
+                imageUrl = item.imageUrl,
+                contentDescription = item.name,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     item.name,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = if (item.isAvailable) TextPrimary else Color.Gray
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = mutedAlpha)
                 )
                 Text(
                     item.category,
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     "${"%,.0f".format(item.price)}đ",
-                    color = if (item.isAvailable) BrandYellow else Color.Gray,
+                    color = BrandYellow.copy(alpha = mutedAlpha),
                     fontWeight = FontWeight.Bold
                 )
             }
-            
+
             Column(horizontalAlignment = Alignment.End) {
                 Switch(
                     checked = item.isAvailable,
@@ -104,7 +138,7 @@ fun StaffMenuItemCard(item: MenuItem, onAvailabilityChange: (Boolean) -> Unit) {
                     text = if (item.isAvailable) "Đang bán" else "Hết hàng",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (item.isAvailable) Color(0xFF4CAF50) else Color.Red
+                    color = if (item.isAvailable) ActionGreen else ActionRed
                 )
             }
         }

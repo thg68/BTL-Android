@@ -1,7 +1,11 @@
 package com.example.androidbtl.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -9,10 +13,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,16 +29,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androidbtl.R
+import com.example.androidbtl.data.models.MenuItem
+import com.example.androidbtl.ui.components.AsyncFoodImage
+import com.example.androidbtl.ui.components.DishCardSkeleton
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.TextPrimary
+import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
-fun HomeScreen(onNavigateToMenu: () -> Unit) {
+fun HomeScreen(
+    viewModel: PosViewModel,
+    onNavigateToMenu: () -> Unit,
+    onNavigateToProfile: () -> Unit = {}
+) {
+    val menuItems by viewModel.menuItems.collectAsState()
+    val featured = menuItems.take(6)
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp
             ) {
                 Column {
@@ -44,22 +61,33 @@ fun HomeScreen(onNavigateToMenu: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("Xin chào!", fontSize = 14.sp, color = Color.Gray)
-                            Text("Khách hàng", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                            Text(
+                                "Xin chào!",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "Khách hàng",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                         Surface(
-                            color = BrandYellow.copy(alpha = 0.1f),
+                            color = BrandYellow.copy(alpha = 0.12f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
-                                Icons.Filled.Star, 
-                                contentDescription = null, 
-                                tint = BrandYellow, 
-                                modifier = Modifier.padding(8.dp).size(24.dp)
+                                Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = BrandYellow,
+                                modifier = Modifier
+                                    .padding(8.dp)
+                                    .size(24.dp)
                             )
                         }
                     }
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 }
             }
         }
@@ -68,19 +96,24 @@ fun HomeScreen(onNavigateToMenu: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF8F9FA))
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
             BannerSection()
             Spacer(modifier = Modifier.height(24.dp))
-            
-            Text("Lối tắt", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+
+            Text(
+                "Lối tắt",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(modifier = Modifier.height(12.dp))
-            QuickActions(onNavigateToMenu)
-            
+            QuickActions(onNavigateToMenu, onNavigateToProfile)
+
             Spacer(modifier = Modifier.height(24.dp))
-            FeaturedDishesSection()
+            FeaturedDishesSection(featured = featured, isLoading = menuItems.isEmpty())
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
@@ -105,17 +138,14 @@ fun BannerSection() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
+                    .background(Color.Black.copy(alpha = 0.35f))
             )
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(20.dp)
             ) {
-                Surface(
-                    color = BrandYellow,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
+                Surface(color = BrandYellow, shape = RoundedCornerShape(8.dp)) {
                     Text(
                         "KHUYẾN MÃI",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
@@ -137,23 +167,44 @@ fun BannerSection() {
 }
 
 @Composable
-fun QuickActions(onNavigateToMenu: () -> Unit) {
+fun QuickActions(onNavigateToMenu: () -> Unit, onNavigateToProfile: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        QuickActionItem("Đặt Bàn", Icons.Filled.Star, Color(0xFFFFE082).copy(alpha = 0.3f), modifier = Modifier.weight(1f)) { }
-        QuickActionItem("Thực Đơn", Icons.Filled.RestaurantMenu, BrandYellow.copy(alpha = 0.2f), modifier = Modifier.weight(1f)) { onNavigateToMenu() }
-        QuickActionItem("Tài Khoản", Icons.Filled.Star, Color(0xFFC8E6C9).copy(alpha = 0.3f), modifier = Modifier.weight(1f)) { }
+        QuickActionItem(
+            "Đặt Bàn",
+            Icons.Filled.Star,
+            BrandYellow.copy(alpha = 0.18f),
+            modifier = Modifier.weight(1f)
+        ) { }
+        QuickActionItem(
+            "Thực Đơn",
+            Icons.Filled.RestaurantMenu,
+            BrandYellow.copy(alpha = 0.18f),
+            modifier = Modifier.weight(1f)
+        ) { onNavigateToMenu() }
+        QuickActionItem(
+            "Tài Khoản",
+            Icons.Filled.Star,
+            BrandYellow.copy(alpha = 0.18f),
+            modifier = Modifier.weight(1f)
+        ) { onNavigateToProfile() }
     }
 }
 
 @Composable
-fun QuickActionItem(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, bgColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun QuickActionItem(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    bgColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     Surface(
         onClick = onClick,
         modifier = modifier.height(90.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 2.dp
     ) {
@@ -167,62 +218,97 @@ fun QuickActionItem(title: String, icon: androidx.compose.ui.graphics.vector.Ima
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = title, tint = TextPrimary, modifier = Modifier.size(20.dp))
+                    Icon(
+                        icon,
+                        contentDescription = title,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text(
+                title,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
 
 @Composable
-fun FeaturedDishesSection() {
+fun FeaturedDishesSection(featured: List<MenuItem>, isLoading: Boolean) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Món gợi ý", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+            Text(
+                "Món gợi ý",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             TextButton(onClick = { }) {
                 Text("Xem tất cả", color = BrandYellow, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 8.dp)
-        ) {
-            items(5) {
-                DishCard()
+        AnimatedVisibility(visible = isLoading, enter = fadeIn(), exit = fadeOut()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
+                items(5) { DishCardSkeleton() }
+            }
+        }
+        AnimatedVisibility(visible = !isLoading, enter = fadeIn(), exit = fadeOut()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
+                items(featured) { item -> DishCard(item = item) }
             }
         }
     }
 }
 
 @Composable
-fun DishCard() {
+fun DishCard(item: MenuItem, onClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.width(160.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier
+            .width(160.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column {
-            Image(
-                painter = painterResource(id = R.drawable.hotpot_banner),
-                contentDescription = "Dish Image",
+            AsyncFoodImage(
+                imageUrl = item.imageUrl,
+                contentDescription = item.name,
                 modifier = Modifier
                     .height(110.dp)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
-                contentScale = ContentScale.Crop
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
             )
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("Lẩu Thái Tomyum", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextPrimary, maxLines = 1)
+                Text(
+                    item.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("189,000đ", color = BrandYellow, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                Text(
+                    "${"%,.0f".format(item.price)}đ",
+                    color = BrandYellow,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 16.sp
+                )
             }
         }
     }
