@@ -1,69 +1,76 @@
 package com.example.androidbtl.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
     primary = BrandYellow,
-    secondary = BrandYellowLight,
-    tertiary = ActionRed,
-    background = NeutralDarkGray,
-    surface = NeutralDarkGray,
     onPrimary = TextPrimary,
+    secondary = BrandYellowLight,
     onSecondary = TextPrimary,
+    tertiary = ActionRed,
     onTertiary = NeutralWhite,
-    onBackground = NeutralWhite,
-    onSurface = NeutralWhite,
+    background = DarkBackground,
+    onBackground = DarkTextPrimary,
+    surface = DarkSurface,
+    onSurface = DarkTextPrimary,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkTextSecondary,
+    outline = NeutralDarkGray,
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = BrandYellow,
-    secondary = BrandYellowDark,
-    tertiary = ActionRed,
-    background = NeutralBackground,
-    surface = NeutralWhite,
     onPrimary = TextPrimary,
+    secondary = BrandYellowDark,
     onSecondary = NeutralWhite,
+    tertiary = ActionRed,
     onTertiary = NeutralWhite,
+    background = NeutralBackground,
     onBackground = TextPrimary,
-    onSurface = TextPrimary
+    surface = NeutralWhite,
+    onSurface = TextPrimary,
+    surfaceVariant = NeutralBackground,
+    onSurfaceVariant = TextSecondary,
+    outline = NeutralGray,
 )
 
 @Composable
 fun AndroidBTLTheme(
-    darkTheme: Boolean = false, // Force light mode
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) {
-        DarkColorScheme
-    } else {
-        LightColorScheme
-    }
-    
+    val systemDark = isSystemInDarkTheme()
+    val isDarkState = remember { mutableStateOf(systemDark) }
+    val isDark by isDarkState
+
+    val colorScheme = if (isDark) DarkColorScheme else LightColorScheme
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = colorScheme.surface.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalThemeIsDark provides isDarkState) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

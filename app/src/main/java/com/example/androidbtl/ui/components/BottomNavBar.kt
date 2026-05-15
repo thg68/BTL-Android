@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -15,13 +16,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.TextPrimary
 
 sealed class Screen(val route: String, val icon: ImageVector, val title: String) {
     // Shared / System
@@ -58,18 +57,18 @@ fun AppBottomNavBar(navController: NavController, isCustomer: Boolean, customerT
     if (currentRoute?.startsWith("staff_pos") == true) return
 
     NavigationBar(
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         modifier = Modifier
             .padding(horizontal = 12.dp, vertical = 12.dp)
             .shadow(20.dp, RoundedCornerShape(32.dp))
             .clip(RoundedCornerShape(32.dp))
-            .border(1.dp, Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
     ) {
         items.forEach { screen ->
             val routeBase = screen.route.substringBefore("/")
             val currentBase = currentRoute?.substringBefore("/")
-            
+
             NavigationBarItem(
                 icon = { Icon(screen.icon, contentDescription = screen.title) },
                 label = { Text(screen.title) },
@@ -87,10 +86,10 @@ fun AppBottomNavBar(navController: NavController, isCustomer: Boolean, customerT
                     }
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = TextPrimary,
-                    unselectedIconColor = Color.Gray,
-                    selectedTextColor = TextPrimary,
-                    unselectedTextColor = Color.Gray,
+                    selectedIconColor = MaterialTheme.colorScheme.onSurface,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     indicatorColor = BrandYellow
                 )
             )

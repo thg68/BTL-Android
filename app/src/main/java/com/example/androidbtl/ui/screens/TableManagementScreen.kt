@@ -21,22 +21,21 @@ import androidx.compose.ui.unit.sp
 import com.example.androidbtl.data.models.RestaurantTable
 import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
-import com.example.androidbtl.ui.theme.TextPrimary
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
 fun TableManagementScreen(viewModel: PosViewModel, onTableClick: (String, String) -> Unit) {
     val tables by viewModel.tables.collectAsState()
+    val isLoading by viewModel.isLoadingTables.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Distinct Top Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 2.dp
         ) {
             Column {
@@ -45,27 +44,28 @@ fun TableManagementScreen(viewModel: PosViewModel, onTableClick: (String, String
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             }
         }
-        
+
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Legend
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LegendItem(color = Color.LightGray, text = "Trống")
+            LegendItem(color = MaterialTheme.colorScheme.surfaceVariant, text = "Trống")
             LegendItem(color = BrandYellow, text = "Đang phục vụ")
             LegendItem(color = ActionRed, text = "Đã đặt")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (tables.isEmpty()) {
+        if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = BrandYellow)
             }
@@ -94,10 +94,15 @@ fun LegendItem(color: Color, text: String) {
             modifier = Modifier
                 .size(14.dp)
                 .background(color, RoundedCornerShape(4.dp))
-                .border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(text, fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+        Text(
+            text,
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -106,11 +111,16 @@ fun TableCard(table: RestaurantTable, onClick: () -> Unit) {
     val backgroundColor = when (table.status) {
         "Đang phục vụ" -> BrandYellow
         "Đã đặt" -> ActionRed
-        else -> Color.White // Trống để màu trắng cho sang
+        else -> MaterialTheme.colorScheme.surface
     }
-    
-    val textColor = if (table.status == "Đã đặt") Color.White else TextPrimary
-    val borderColor = if (table.status == "Trống") Color.LightGray.copy(alpha = 0.5f) else Color.Transparent
+
+    val textColor = when (table.status) {
+        "Đã đặt" -> Color.White
+        "Đang phục vụ" -> Color.Black
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val borderColor =
+        if (table.status == "Trống") MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) else Color.Transparent
 
     Card(
         modifier = Modifier
@@ -124,19 +134,19 @@ fun TableCard(table: RestaurantTable, onClick: () -> Unit) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    table.name, 
-                    fontWeight = FontWeight.ExtraBold, 
-                    fontSize = 20.sp, 
+                    table.name,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
                     color = textColor
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Surface(
-                    color = textColor.copy(alpha = 0.1f),
+                    color = textColor.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
-                        table.status, 
-                        fontSize = 10.sp, 
+                        table.status,
+                        fontSize = 10.sp,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         color = textColor,
                         fontWeight = FontWeight.Bold

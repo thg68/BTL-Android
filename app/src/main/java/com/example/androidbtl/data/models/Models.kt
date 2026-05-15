@@ -17,7 +17,8 @@ data class MenuItem(
     @get:PropertyName("available")
     @set:PropertyName("available")
     var isAvailable: Boolean = true,
-    val description: String = ""
+    val description: String = "",
+    val imageUrl: String = ""
 )
 
 data class OrderItem(
