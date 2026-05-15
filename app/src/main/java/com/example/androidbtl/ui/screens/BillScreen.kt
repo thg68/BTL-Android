@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androidbtl.data.models.OrderItem
 import com.example.androidbtl.ui.components.EmptyState
+import com.example.androidbtl.ui.components.QrPaymentDialog
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 
@@ -38,6 +40,7 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
         .sortedBy { it.name }
 
     val totalAmount = mergedItems.sumOf { it.price * it.quantity }
+    var showQrDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -74,20 +77,23 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = {
-                                tableOrders.forEach { order ->
-                                    viewModel.closeOrder(order.id, tableId)
-                                }
-                            },
+                            onClick = { showQrDialog = true },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = BrandYellow),
                             shape = RoundedCornerShape(16.dp)
                         ) {
+                            Icon(
+                                Icons.Filled.QrCode2,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "THANH TOÁN NGAY",
-                                fontSize = 18.sp,
+                                "TẠO QR THANH TOÁN",
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color.Black
                             )
@@ -151,6 +157,14 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
                 }
             }
         }
+    }
+
+    if (showQrDialog) {
+        QrPaymentDialog(
+            amount = totalAmount,
+            tableId = tableId,
+            onDismiss = { showQrDialog = false }
+        )
     }
 }
 
