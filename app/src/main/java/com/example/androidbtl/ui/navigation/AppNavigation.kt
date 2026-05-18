@@ -126,8 +126,13 @@ fun AppNavigation() {
                     }
                 }
                 composable(Screen.KDS.route) { KitchenDisplayScreen(viewModel = posViewModel) }
-                composable(Screen.StaffMenu.route) { StaffMenuScreen(viewModel = posViewModel) }
-                composable(Screen.Billing.route) { BillingScreen(viewModel = posViewModel) }
+                composable(Screen.StaffMenu.route) {
+                    StaffMenuScreen(viewModel = posViewModel, onShowMessage = showMessage)
+                }
+                composable(Screen.Billing.route) {
+                    BillingScreen(viewModel = posViewModel, onShowMessage = showMessage)
+                }
+                composable(Screen.Dashboard.route) { DashboardScreen(viewModel = posViewModel) }
 
                 composable(
                     route = "staff_pos/{tableId}",
@@ -148,7 +153,8 @@ fun AppNavigation() {
                     HomeScreen(
                         viewModel = posViewModel,
                         onNavigateToMenu = { navController.navigate(Screen.CusMenu.route) },
-                        onNavigateToProfile = { navController.navigate(Screen.CusProfile.route) }
+                        onNavigateToProfile = { navController.navigate(Screen.CusProfile.route) },
+                        onNavigateToBooking = { navController.navigate("cus_booking/$customerTableId") }
                     )
                 }
                 composable(Screen.CusMenu.route) {

@@ -25,13 +25,14 @@ import com.example.androidbtl.ui.theme.BrandYellow
 sealed class Screen(val route: String, val icon: ImageVector, val title: String) {
     // Shared / System
     object Login : Screen("login", Icons.Filled.AccountCircle, "Đăng nhập")
-    
+
     // Staff Screens
+    object Dashboard : Screen("dashboard", Icons.Filled.Analytics, "Báo cáo")
     object Tables : Screen("tables", Icons.Filled.TableRestaurant, "Bàn")
     object KDS : Screen("kds", Icons.Filled.Restaurant, "Bếp")
-    object StaffMenu : Screen("staff_menu", Icons.Filled.Inventory, "Món ăn")
+    object StaffMenu : Screen("staff_menu", Icons.Filled.Inventory, "Món")
     object Billing : Screen("billing", Icons.Filled.Payments, "Thu ngân")
-    object StaffPOS : Screen("staff_pos/{tableId}", Icons.AutoMirrored.Filled.List, "Order") 
+    object StaffPOS : Screen("staff_pos/{tableId}", Icons.AutoMirrored.Filled.List, "Order")
 
     // Customer Screens
     object CusHome : Screen("cus_home", Icons.Filled.Home, "Trang chủ")
@@ -46,7 +47,7 @@ fun AppBottomNavBar(navController: NavController, isCustomer: Boolean, customerT
     val items = if (isCustomer) {
         listOf(Screen.CusHome, Screen.CusMenu, Screen.CusBill, Screen.CusProfile)
     } else {
-        listOf(Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Billing)
+        listOf(Screen.Dashboard, Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Billing)
     }
 
     val navBackStackEntry = navController.currentBackStackEntryAsState().value

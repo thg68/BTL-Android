@@ -25,7 +25,10 @@ import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
-fun StaffMenuScreen(viewModel: PosViewModel) {
+fun StaffMenuScreen(
+    viewModel: PosViewModel,
+    onShowMessage: (String) -> Unit = {}
+) {
     val menuItems by viewModel.menuItems.collectAsState()
     val isLoading by viewModel.isLoadingMenu.collectAsState()
 
@@ -75,6 +78,8 @@ fun StaffMenuScreen(viewModel: PosViewModel) {
                     items(menuItems) { item ->
                         StaffMenuItemCard(item) { isAvailable ->
                             viewModel.updateMenuItemAvailability(item.id, isAvailable)
+                            val msg = if (isAvailable) "Đã hiện món ${item.name}" else "Đã ẩn món ${item.name}"
+                            onShowMessage(msg)
                         }
                     }
                     item { Spacer(modifier = Modifier.height(100.dp)) }

@@ -2,4 +2,11 @@
 <resources>
 
     <style name="Theme.AndroidBTL" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.AndroidBTL.Starter" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#1A1A1A</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimationDuration">600</item>
+        <item name="postSplashScreenTheme">@style/Theme.AndroidBTL</item>
+    </style>
 </resources>

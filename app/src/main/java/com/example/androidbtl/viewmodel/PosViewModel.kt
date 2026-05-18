@@ -39,6 +39,7 @@ class PosViewModel : ViewModel() {
         listenToClosedOrders()
         seedDatabaseIfEmpty()
         backfillImageUrls()
+        seedClosedOrdersIfEmpty()
     }
 
     private val nameToImageUrl: Map<String, String> = mapOf(
@@ -137,6 +138,50 @@ class PosViewModel : ViewModel() {
                             db.collection("tables").document(tableId).set(table)
                         }
                     }
+                }
+            }
+    }
+
+    private fun seedClosedOrdersIfEmpty() {
+        db.collection("orders")
+            .whereEqualTo("status", "Closed")
+            .limit(1)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                if (!snapshot.isEmpty) return@addOnSuccessListener
+                Log.d("PosViewModel", "Seeding demo closed orders for dashboard...")
+
+                val now = System.currentTimeMillis()
+                val day = 24L * 60 * 60 * 1000
+                val demoDishes = listOf(
+                    Triple("Lẩu Tứ Xuyên", "Nước lẩu", 99000.0),
+                    Triple("Bò Mỹ Thăn Nội", "Thịt bò", 189000.0),
+                    Triple("Tôm Hùm Alaska", "Hải sản", 599000.0),
+                    Triple("Nấm Kim Châm", "Rau nấm", 49000.0),
+                    Triple("Mì Udon", "Ăn kèm", 49000.0),
+                    Triple("Ba Chỉ Lợn Iberico", "Thịt lợn", 169000.0),
+                    Triple("Bò Wagyu A5", "Thịt bò", 299000.0)
+                )
+
+                repeat(18) { idx ->
+                    val dayOffset = (idx % 7).toLong()
+                    val timestamp = now - dayOffset * day - (idx * 37L * 60_000)
+                    val pickCount = 2 + (idx % 4)
+                    val items = (0 until pickCount).map { k ->
+                        val (name, _, price) = demoDishes[(idx + k) % demoDishes.size]
+                        val qty = 1 + ((idx + k) % 3)
+                        OrderItem(menuItemId = "demo-$idx-$k", name = name, quantity = qty, price = price, status = "Done")
+                    }
+                    val total = items.sumOf { it.price * it.quantity }
+                    val tableId = ((idx % 15) + 1).toString()
+                    val order = Order(
+                        tableId = tableId,
+                        items = items,
+                        totalAmount = total,
+                        status = "Closed",
+                        timestamp = timestamp
+                    )
+                    db.collection("orders").add(order)
                 }
             }
     }

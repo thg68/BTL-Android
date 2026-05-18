@@ -21,7 +21,10 @@ import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
-fun BillingScreen(viewModel: PosViewModel) {
+fun BillingScreen(
+    viewModel: PosViewModel,
+    onShowMessage: (String) -> Unit = {}
+) {
     val orders by viewModel.activeOrders.collectAsState()
 
     Column(
@@ -85,7 +88,10 @@ fun BillingScreen(viewModel: PosViewModel) {
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
-                                onClick = { viewModel.closeOrder(order.id, order.tableId) },
+                                onClick = {
+                                    viewModel.closeOrder(order.id, order.tableId)
+                                    onShowMessage("Đã đóng bàn ${order.tableId} • Cảm ơn quý khách")
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),

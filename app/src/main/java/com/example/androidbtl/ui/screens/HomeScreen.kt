@@ -13,6 +13,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.EventSeat
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -39,7 +41,8 @@ import com.example.androidbtl.viewmodel.PosViewModel
 fun HomeScreen(
     viewModel: PosViewModel,
     onNavigateToMenu: () -> Unit,
-    onNavigateToProfile: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToBooking: () -> Unit = {}
 ) {
     val menuItems by viewModel.menuItems.collectAsState()
     val featured = menuItems.take(6)
@@ -110,10 +113,14 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(12.dp))
-            QuickActions(onNavigateToMenu, onNavigateToProfile)
+            QuickActions(onNavigateToMenu, onNavigateToProfile, onNavigateToBooking)
 
             Spacer(modifier = Modifier.height(24.dp))
-            FeaturedDishesSection(featured = featured, isLoading = menuItems.isEmpty())
+            FeaturedDishesSection(
+                featured = featured,
+                isLoading = menuItems.isEmpty(),
+                onSeeAll = onNavigateToMenu
+            )
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
@@ -167,17 +174,21 @@ fun BannerSection() {
 }
 
 @Composable
-fun QuickActions(onNavigateToMenu: () -> Unit, onNavigateToProfile: () -> Unit) {
+fun QuickActions(
+    onNavigateToMenu: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToBooking: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         QuickActionItem(
             "Đặt Bàn",
-            Icons.Filled.Star,
+            Icons.Filled.EventSeat,
             BrandYellow.copy(alpha = 0.18f),
             modifier = Modifier.weight(1f)
-        ) { }
+        ) { onNavigateToBooking() }
         QuickActionItem(
             "Thực Đơn",
             Icons.Filled.RestaurantMenu,
@@ -186,7 +197,7 @@ fun QuickActions(onNavigateToMenu: () -> Unit, onNavigateToProfile: () -> Unit) 
         ) { onNavigateToMenu() }
         QuickActionItem(
             "Tài Khoản",
-            Icons.Filled.Star,
+            Icons.Filled.AccountCircle,
             BrandYellow.copy(alpha = 0.18f),
             modifier = Modifier.weight(1f)
         ) { onNavigateToProfile() }
@@ -238,7 +249,11 @@ fun QuickActionItem(
 }
 
 @Composable
-fun FeaturedDishesSection(featured: List<MenuItem>, isLoading: Boolean) {
+fun FeaturedDishesSection(
+    featured: List<MenuItem>,
+    isLoading: Boolean,
+    onSeeAll: () -> Unit = {}
+) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -251,7 +266,7 @@ fun FeaturedDishesSection(featured: List<MenuItem>, isLoading: Boolean) {
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            TextButton(onClick = { }) {
+            TextButton(onClick = onSeeAll) {
                 Text("Xem tất cả", color = BrandYellow, fontWeight = FontWeight.Bold)
             }
         }
