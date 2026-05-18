@@ -128,7 +128,7 @@ app/src/main/java/com/example/androidbtl/
 
 ## Thành viên
 
-- Nguyễn Ngọc Hiệp — (điền thêm thành viên nhóm nếu có)
+- Nguyễn Ngọc Hiệp — ()
 
 ---
 
