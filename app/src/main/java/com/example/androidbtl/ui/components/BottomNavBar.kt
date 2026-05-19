@@ -6,6 +6,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -42,7 +44,12 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
 }
 
 @Composable
-fun AppBottomNavBar(navController: NavController, isCustomer: Boolean, customerTableId: String = "") {
+fun AppBottomNavBar(
+    navController: NavController,
+    isCustomer: Boolean,
+    customerTableId: String = "",
+    pendingItemCount: Int = 0
+) {
     val items = if (isCustomer) {
         listOf(Screen.CusHome, Screen.CusMenu, Screen.CusBill, Screen.CusProfile)
     } else {
@@ -70,7 +77,17 @@ fun AppBottomNavBar(navController: NavController, isCustomer: Boolean, customerT
             val currentBase = currentRoute?.substringBefore("/")
 
             NavigationBarItem(
-                icon = { Icon(screen.icon, contentDescription = screen.title) },
+                icon = {
+                    if (screen == Screen.KDS && pendingItemCount > 0) {
+                        BadgedBox(badge = {
+                            Badge { Text(if (pendingItemCount > 99) "99+" else pendingItemCount.toString()) }
+                        }) {
+                            Icon(screen.icon, contentDescription = screen.title)
+                        }
+                    } else {
+                        Icon(screen.icon, contentDescription = screen.title)
+                    }
+                },
                 label = { Text(screen.title) },
                 selected = currentBase == routeBase,
                 onClick = {

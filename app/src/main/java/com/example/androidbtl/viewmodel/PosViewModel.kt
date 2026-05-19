@@ -2,14 +2,22 @@ package com.example.androidbtl.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.androidbtl.data.models.MenuItem
 import com.example.androidbtl.data.models.Order
 import com.example.androidbtl.data.models.OrderItem
 import com.example.androidbtl.data.models.RestaurantTable
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class PosViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
@@ -25,6 +33,13 @@ class PosViewModel : ViewModel() {
 
     private val _closedOrders = MutableStateFlow<List<Order>>(emptyList())
     val closedOrders: StateFlow<List<Order>> = _closedOrders.asStateFlow()
+
+    private val _newOrderEvent = MutableSharedFlow<String>(extraBufferCapacity = 10)
+    val newOrderEvent: SharedFlow<String> = _newOrderEvent.asSharedFlow()
+
+    val pendingItemCount: StateFlow<Int> = _activeOrders.map { orders ->
+        orders.sumOf { order -> order.items.count { it.status == "Pending" } }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     private val _isLoadingMenu = MutableStateFlow(true)
     val isLoadingMenu: StateFlow<Boolean> = _isLoadingMenu.asStateFlow()
@@ -186,11 +201,33 @@ class PosViewModel : ViewModel() {
         }
     }
 
+    private val prevPendingCount = mutableMapOf<String, Int>()
+    private var ordersInitialized = false
+
     private fun listenToActiveOrders() {
         db.collection("orders").whereEqualTo("status", "Open").addSnapshotListener { snapshot, e ->
             if (e != null) return@addSnapshotListener
             if (snapshot != null) {
                 val orders = snapshot.documents.mapNotNull { it.toObject(Order::class.java)?.copy(id = it.id) }
+
+                if (ordersInitialized) {
+                    orders.forEach { order ->
+                        val newCount = order.items.count { it.status == "Pending" }
+                        val oldCount = prevPendingCount[order.id] ?: 0
+                        if (newCount > oldCount) {
+                            val diff = newCount - oldCount
+                            viewModelScope.launch {
+                                _newOrderEvent.emit("Bàn ${order.tableId} vừa gửi $diff món mới!")
+                            }
+                        }
+                    }
+                }
+
+                prevPendingCount.clear()
+                orders.forEach { order ->
+                    prevPendingCount[order.id] = order.items.count { it.status == "Pending" }
+                }
+                ordersInitialized = true
                 _activeOrders.value = orders
             }
         }
@@ -305,6 +342,20 @@ class PosViewModel : ViewModel() {
                 mapOf("items" to updatedItems)
             )
         }
+    }
+
+    fun addMenuItem(name: String, category: String, price: Double, description: String, imageUrl: String) {
+        val url = imageUrl.ifBlank { imageUrlFor(name, category) }
+        val item = MenuItem(name = name, category = category, price = price, description = description, imageUrl = url)
+        db.collection("menu_items").add(item)
+    }
+
+    fun updateMenuItem(item: MenuItem) {
+        db.collection("menu_items").document(item.id).set(item)
+    }
+
+    fun deleteMenuItem(menuItemId: String) {
+        db.collection("menu_items").document(menuItemId).delete()
     }
 
     fun removeOrderItem(orderId: String, menuItemId: String) {

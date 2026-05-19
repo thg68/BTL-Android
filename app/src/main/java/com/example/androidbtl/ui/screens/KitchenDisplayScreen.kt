@@ -14,8 +14,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -31,28 +34,37 @@ import com.example.androidbtl.viewmodel.PosViewModel
 fun KitchenDisplayScreen(viewModel: PosViewModel) {
     val orders by viewModel.activeOrders.collectAsState()
     val hasAnyItem = orders.any { it.items.any { i -> i.status in listOf("Pending", "Cooking", "Done") } }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 2.dp
-        ) {
-            Column {
-                Text(
-                    "Điều phối Nhà Bếp",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-            }
+    LaunchedEffect(Unit) {
+        viewModel.newOrderEvent.collect { message ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
         }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 2.dp
+            ) {
+                Column {
+                    Text(
+                        "Điều phối Nhà Bếp",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                }
+            }
 
         Row(
             modifier = Modifier
@@ -87,7 +99,21 @@ fun KitchenDisplayScreen(viewModel: PosViewModel) {
                 KdsColumn(orders = orders, targetStatus = "Done", modifier = Modifier.weight(1f)) { _, _ -> }
             }
         }
-    }
+        } // end Column
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+        ) { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = ActionRed,
+                contentColor = Color.White
+            )
+        }
+    } // end Box
 }
 
 @Composable

@@ -12,6 +12,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,7 @@ fun AppNavigation() {
 
     var isCustomerRole by remember { mutableStateOf<Boolean?>(null) }
     var customerTableId by remember { mutableStateOf("") }
+    val pendingItemCount by posViewModel.pendingItemCount.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -81,7 +83,8 @@ fun AppNavigation() {
                     AppBottomNavBar(
                         navController = navController,
                         isCustomer = isCustomerRole == true,
-                        customerTableId = customerTableId
+                        customerTableId = customerTableId,
+                        pendingItemCount = pendingItemCount
                     )
                 }
             }
@@ -121,9 +124,16 @@ fun AppNavigation() {
 
                 // STAFF
                 composable(Screen.Tables.route) {
-                    TableManagementScreen(viewModel = posViewModel) { tableId, _ ->
-                        navController.navigate("staff_pos/$tableId")
-                    }
+                    TableManagementScreen(
+                        viewModel = posViewModel,
+                        onTableClick = { tableId, _ -> navController.navigate("staff_pos/$tableId") },
+                        onLogout = {
+                            isCustomerRole = null
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
                 }
                 composable(Screen.KDS.route) { KitchenDisplayScreen(viewModel = posViewModel) }
                 composable(Screen.StaffMenu.route) { StaffMenuScreen(viewModel = posViewModel) }

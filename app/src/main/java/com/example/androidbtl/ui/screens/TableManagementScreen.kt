@@ -8,10 +8,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,9 +24,30 @@ import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
-fun TableManagementScreen(viewModel: PosViewModel, onTableClick: (String, String) -> Unit) {
+fun TableManagementScreen(
+    viewModel: PosViewModel,
+    onTableClick: (String, String) -> Unit,
+    onLogout: () -> Unit = {}
+) {
     val tables by viewModel.tables.collectAsState()
     val isLoading by viewModel.isLoadingTables.collectAsState()
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Đăng xuất", fontWeight = FontWeight.Bold) },
+            text = { Text("Bạn có chắc muốn đăng xuất khỏi hệ thống?") },
+            confirmButton = {
+                TextButton(onClick = { showLogoutDialog = false; onLogout() }) {
+                    Text("Đăng xuất", color = ActionRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) { Text("Hủy") }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -39,13 +60,27 @@ fun TableManagementScreen(viewModel: PosViewModel, onTableClick: (String, String
             shadowElevation = 2.dp
         ) {
             Column {
-                Text(
-                    "Sơ đồ Bàn",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Sơ đồ Bàn",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    IconButton(onClick = { showLogoutDialog = true }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Logout,
+                            contentDescription = "Đăng xuất",
+                            tint = ActionRed
+                        )
+                    }
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             }
         }
