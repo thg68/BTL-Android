@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Payments
@@ -11,11 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androidbtl.ui.components.EmptyState
+import com.example.androidbtl.ui.components.StaffNotificationBell
 import com.example.androidbtl.ui.theme.ActionGreen
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
@@ -23,6 +27,8 @@ import com.example.androidbtl.viewmodel.PosViewModel
 @Composable
 fun BillingScreen(viewModel: PosViewModel) {
     val orders by viewModel.activeOrders.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
+    val unreadCount by viewModel.unreadCount.collectAsState()
 
     Column(
         modifier = Modifier
@@ -35,13 +41,26 @@ fun BillingScreen(viewModel: PosViewModel) {
             shadowElevation = 2.dp
         ) {
             Column {
-                Text(
-                    "Thu ngân",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Thu ngân",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    StaffNotificationBell(
+                        notifications = notifications,
+                        unreadCount = unreadCount,
+                        onOpen = { viewModel.markAllRead() },
+                        onClear = { viewModel.clearNotifications() }
+                    )
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             }
         }

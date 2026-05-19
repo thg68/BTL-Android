@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androidbtl.data.models.MenuItem
+import com.example.androidbtl.data.models.NotificationItem
 import com.example.androidbtl.data.models.Order
 import com.example.androidbtl.data.models.OrderItem
 import com.example.androidbtl.data.models.RestaurantTable
@@ -40,6 +41,21 @@ class PosViewModel : ViewModel() {
     val pendingItemCount: StateFlow<Int> = _activeOrders.map { orders ->
         orders.sumOf { order -> order.items.count { it.status == "Pending" } }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
+    val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
+
+    val unreadCount: StateFlow<Int> = _notifications.map { list ->
+        list.count { !it.isRead }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    fun markAllRead() {
+        _notifications.value = _notifications.value.map { it.copy(isRead = true) }
+    }
+
+    fun clearNotifications() {
+        _notifications.value = emptyList()
+    }
 
     private val _isLoadingMenu = MutableStateFlow(true)
     val isLoadingMenu: StateFlow<Boolean> = _isLoadingMenu.asStateFlow()
@@ -216,8 +232,14 @@ class PosViewModel : ViewModel() {
                         val oldCount = prevPendingCount[order.id] ?: 0
                         if (newCount > oldCount) {
                             val diff = newCount - oldCount
+                            val msg = "Bàn ${order.tableId} vừa gửi $diff món mới!"
+                            val notif = NotificationItem(
+                                id = "${order.id}_${System.currentTimeMillis()}",
+                                message = msg
+                            )
                             viewModelScope.launch {
-                                _newOrderEvent.emit("Bàn ${order.tableId} vừa gửi $diff món mới!")
+                                _notifications.value = listOf(notif) + _notifications.value
+                                _newOrderEvent.emit(msg)
                             }
                         }
                     }

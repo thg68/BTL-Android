@@ -22,6 +22,7 @@ import com.example.androidbtl.data.models.MenuItem
 import com.example.androidbtl.ui.components.AsyncFoodImage
 import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.components.MenuItemSkeleton
+import com.example.androidbtl.ui.components.StaffNotificationBell
 import com.example.androidbtl.ui.theme.ActionGreen
 import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
@@ -35,6 +36,8 @@ private val menuCategories = listOf(
 fun StaffMenuScreen(viewModel: PosViewModel) {
     val menuItems by viewModel.menuItems.collectAsState()
     val isLoading by viewModel.isLoadingMenu.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
+    val unreadCount by viewModel.unreadCount.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<MenuItem?>(null) }
@@ -52,13 +55,26 @@ fun StaffMenuScreen(viewModel: PosViewModel) {
                 shadowElevation = 2.dp
             ) {
                 Column {
-                    Text(
-                        "Quản lý Món ăn",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Quản lý Món ăn",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        StaffNotificationBell(
+                            notifications = notifications,
+                            unreadCount = unreadCount,
+                            onOpen = { viewModel.markAllRead() },
+                            onClear = { viewModel.clearNotifications() }
+                        )
+                    }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 }
             }

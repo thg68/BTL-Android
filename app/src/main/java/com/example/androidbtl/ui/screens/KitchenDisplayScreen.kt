@@ -18,6 +18,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androidbtl.ui.components.EmptyState
+import com.example.androidbtl.ui.components.StaffNotificationBell
 import com.example.androidbtl.ui.theme.ActionGreen
 import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
@@ -34,6 +37,8 @@ import com.example.androidbtl.viewmodel.PosViewModel
 fun KitchenDisplayScreen(viewModel: PosViewModel) {
     val orders by viewModel.activeOrders.collectAsState()
     val hasAnyItem = orders.any { it.items.any { i -> i.status in listOf("Pending", "Cooking", "Done") } }
+    val notifications by viewModel.notifications.collectAsState()
+    val unreadCount by viewModel.unreadCount.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -55,13 +60,26 @@ fun KitchenDisplayScreen(viewModel: PosViewModel) {
                 shadowElevation = 2.dp
             ) {
                 Column {
-                    Text(
-                        "Điều phối Nhà Bếp",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Điều phối Nhà Bếp",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        StaffNotificationBell(
+                            notifications = notifications,
+                            unreadCount = unreadCount,
+                            onOpen = { viewModel.markAllRead() },
+                            onClear = { viewModel.clearNotifications() }
+                        )
+                    }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 }
             }

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.androidbtl.data.models.RestaurantTable
+import com.example.androidbtl.ui.components.StaffNotificationBell
 import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
@@ -31,6 +32,8 @@ fun TableManagementScreen(
 ) {
     val tables by viewModel.tables.collectAsState()
     val isLoading by viewModel.isLoadingTables.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
+    val unreadCount by viewModel.unreadCount.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     if (showLogoutDialog) {
@@ -73,12 +76,20 @@ fun TableManagementScreen(
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    IconButton(onClick = { showLogoutDialog = true }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = "Đăng xuất",
-                            tint = ActionRed
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        StaffNotificationBell(
+                            notifications = notifications,
+                            unreadCount = unreadCount,
+                            onOpen = { viewModel.markAllRead() },
+                            onClear = { viewModel.clearNotifications() }
                         )
+                        IconButton(onClick = { showLogoutDialog = true }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = "Đăng xuất",
+                                tint = ActionRed
+                            )
+                        }
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))

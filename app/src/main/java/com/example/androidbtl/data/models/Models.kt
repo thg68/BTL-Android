@@ -37,3 +37,10 @@ data class Order(
     val status: String = "Open", // Open, Closed
     val timestamp: Long = System.currentTimeMillis()
 )
+
+data class NotificationItem(
+    val id: String = "",
+    val message: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val isRead: Boolean = false
+)
