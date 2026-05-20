@@ -224,7 +224,11 @@ class PosViewModel : ViewModel() {
         db.collection("orders").whereEqualTo("status", "Open").addSnapshotListener { snapshot, e ->
             if (e != null) return@addSnapshotListener
             if (snapshot != null) {
-                val orders = snapshot.documents.mapNotNull { it.toObject(Order::class.java)?.copy(id = it.id) }
+                val orders = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Order::class.java)?.copy(id = doc.id)?.let { order ->
+                        order.copy(totalAmount = order.items.sumOf { it.price * it.quantity })
+                    }
+                }
 
                 if (ordersInitialized) {
                     orders.forEach { order ->
@@ -259,8 +263,11 @@ class PosViewModel : ViewModel() {
         db.collection("orders").whereEqualTo("status", "Closed").addSnapshotListener { snapshot, e ->
             if (e != null) return@addSnapshotListener
             if (snapshot != null) {
-                val orders = snapshot.documents.mapNotNull { it.toObject(Order::class.java)?.copy(id = it.id) }
-                    .sortedByDescending { it.timestamp }
+                val orders = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Order::class.java)?.copy(id = doc.id)?.let { order ->
+                        order.copy(totalAmount = order.items.sumOf { it.price * it.quantity })
+                    }
+                }.sortedByDescending { it.timestamp }
                 _closedOrders.value = orders
             }
         }
@@ -268,6 +275,19 @@ class PosViewModel : ViewModel() {
 
     fun updateTableStatus(tableId: String, status: String) {
         db.collection("tables").document(tableId).update("status", status)
+    }
+
+    fun addTable(name: String, capacity: Int) {
+        val docRef = db.collection("tables").document()
+        docRef.set(RestaurantTable(id = docRef.id, name = name, status = "Trống", capacity = capacity))
+    }
+
+    fun updateTable(tableId: String, name: String, capacity: Int) {
+        db.collection("tables").document(tableId).update(mapOf("name" to name, "capacity" to capacity))
+    }
+
+    fun deleteTable(tableId: String) {
+        db.collection("tables").document(tableId).delete()
     }
 
     fun createOrderForTable(tableId: String) {
@@ -326,7 +346,7 @@ class PosViewModel : ViewModel() {
             } else {
                 updatedItems.add(OrderItem(menuItemId = menuItem.id, name = menuItem.name, quantity = 1, price = menuItem.price, status = "Cart"))
             }
-            val newTotal = order.totalAmount + menuItem.price
+            val newTotal = updatedItems.sumOf { it.price * it.quantity }
             transaction.update(orderRef, mapOf("items" to updatedItems, "totalAmount" to newTotal))
         }
     }
@@ -345,25 +365,29 @@ class PosViewModel : ViewModel() {
     }
 
     fun closeOrder(orderId: String, tableId: String) {
-        db.collection("orders").document(orderId).update("status", "Closed").addOnSuccessListener {
-            updateTableStatus(tableId, "Trống")
-        }
+        val total = _activeOrders.value.find { it.id == orderId }
+            ?.items?.sumOf { it.price * it.quantity } ?: 0.0
+        db.collection("orders").document(orderId)
+            .update(mapOf("status" to "Closed", "totalAmount" to total))
+            .addOnSuccessListener { updateTableStatus(tableId, "Trống") }
     }
 
     fun sendOrderToKitchen(orderId: String) {
-        db.collection("orders").document(orderId).get().addOnSuccessListener { doc ->
-            val order = doc.toObject(Order::class.java) ?: return@addOnSuccessListener
-            val cartItems = order.items.filter { it.status == "Cart" }
-            if (cartItems.isEmpty()) return@addOnSuccessListener
-            
-            val updatedItems = order.items.map { 
-                if (it.status == "Cart") it.copy(status = "Pending") else it 
-            }
-            
-            db.collection("orders").document(orderId).update(
-                mapOf("items" to updatedItems)
-            )
+        val order = _activeOrders.value.find { it.id == orderId } ?: return
+        val cartItems = order.items.filter { it.status == "Cart" }
+        if (cartItems.isEmpty()) return
+
+        val updatedItems = order.items.map {
+            if (it.status == "Cart") it.copy(status = "Pending") else it
         }
+
+        // Optimistic local update
+        _activeOrders.value = _activeOrders.value.map {
+            if (it.id == orderId) it.copy(items = updatedItems) else it
+        }
+
+        // Persist to Firestore
+        db.collection("orders").document(orderId).update("items", updatedItems)
     }
 
     fun addMenuItem(name: String, category: String, price: Double, description: String, imageUrl: String) {
@@ -395,15 +419,8 @@ class PosViewModel : ViewModel() {
             }
         }
 
-        db.collection("orders").document(orderId).get().addOnSuccessListener { doc ->
-            val order = doc.toObject(Order::class.java) ?: return@addOnSuccessListener
-            val mutableItems = order.items.toMutableList()
-            val itemIdx = mutableItems.indexOfFirst { it.menuItemId == menuItemId && it.status == "Cart" }
-            if (itemIdx != -1) {
-                val removed = mutableItems.removeAt(itemIdx)
-                val newTotal = order.totalAmount - (removed.price * removed.quantity)
-                db.collection("orders").document(orderId).update(mapOf("items" to mutableItems, "totalAmount" to newTotal))
-            }
-        }
+        val updatedOrder = _activeOrders.value.find { it.id == orderId } ?: return
+        db.collection("orders").document(orderId)
+            .update(mapOf("items" to updatedOrder.items, "totalAmount" to updatedOrder.totalAmount))
     }
 }

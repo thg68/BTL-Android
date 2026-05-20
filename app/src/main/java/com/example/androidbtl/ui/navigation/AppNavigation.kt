@@ -138,6 +138,7 @@ fun AppNavigation() {
                 composable(Screen.KDS.route) { KitchenDisplayScreen(viewModel = posViewModel) }
                 composable(Screen.StaffMenu.route) { StaffMenuScreen(viewModel = posViewModel) }
                 composable(Screen.Billing.route) { BillingScreen(viewModel = posViewModel) }
+                composable(Screen.Revenue.route) { RevenueScreen(viewModel = posViewModel) }
 
                 composable(
                     route = "staff_pos/{tableId}",

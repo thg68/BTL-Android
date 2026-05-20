@@ -33,6 +33,7 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
     object KDS : Screen("kds", Icons.Filled.Restaurant, "Bếp")
     object StaffMenu : Screen("staff_menu", Icons.Filled.Inventory, "Món ăn")
     object Billing : Screen("billing", Icons.Filled.Payments, "Thu ngân")
+    object Revenue : Screen("revenue", Icons.Filled.BarChart, "Doanh thu")
     object StaffPOS : Screen("staff_pos/{tableId}", Icons.AutoMirrored.Filled.List, "Order") 
 
     // Customer Screens
@@ -53,7 +54,7 @@ fun AppBottomNavBar(
     val items = if (isCustomer) {
         listOf(Screen.CusHome, Screen.CusMenu, Screen.CusBill, Screen.CusProfile)
     } else {
-        listOf(Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Billing)
+        listOf(Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Billing, Screen.Revenue)
     }
 
     val navBackStackEntry = navController.currentBackStackEntryAsState().value
