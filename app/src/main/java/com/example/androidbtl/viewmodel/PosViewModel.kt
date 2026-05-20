@@ -73,30 +73,31 @@ class PosViewModel : ViewModel() {
     }
 
     private val nameToImageUrl: Map<String, String> = mapOf(
-        "Bò Wagyu A5" to "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600",
-        "Bò Mỹ Thăn Nội" to "https://images.unsplash.com/photo-1588168333986-5078d3ae3976?w=600",
-        "Bò Úc Sườn Non" to "https://images.unsplash.com/photo-1588347818133-c8e9b1d3a2c0?w=600",
-        "Bò Gầu Bò" to "https://images.unsplash.com/photo-1588168333986-5078d3ae3976?w=600",
+        "Bò Wagyu A5" to "https://images.unsplash.com/photo-1615937691194-97dbd3f3dc29?w=600",
+        "Bò Mỹ Thăn Nội" to "https://images.unsplash.com/photo-1618400109127-b9c068eabe1b?w=600",
+        "Bò Úc Sườn Non" to "https://plus.unsplash.com/premium_photo-1668616817170-2a74b5cd181d?w=600",
+        "Bò Gầu Bò" to "https://images.unsplash.com/photo-1719785046032-20b6470e19e0?w=600",
         "Bò Viên Handmade" to "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=600",
-        "Ba Chỉ Lợn Iberico" to "https://images.unsplash.com/photo-1607116667981-ff148a4e3e30?w=600",
-        "Lợn Mán Nướng" to "https://images.unsplash.com/photo-1544025162-d76694265947?w=600",
+        "Ba Chỉ Lợn Iberico" to "https://images.unsplash.com/photo-1752555535777-0aed7bc93f98?w=600",
+        "Lợn Mán Nướng" to "https://images.unsplash.com/photo-1624174782964-e541742299ee?w=600",
         "Xúc Xích Đức" to "https://images.unsplash.com/photo-1601001815853-3835274403b3?w=600",
         "Chả Cua" to "https://images.unsplash.com/photo-1601315379734-425d04812e0e?w=600",
         "Giò Heo" to "https://images.unsplash.com/photo-1544025162-d76694265947?w=600",
-        "Tôm Hùm Alaska" to "https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=600",
-        "Cua Hoàng Đế" to "https://images.unsplash.com/photo-1559737558-2f5a35f4523b?w=600",
+        "Tôm Hùm Alaska" to "https://images.unsplash.com/photo-1707995546402-5057206e5161?w=600",
+        "Cua Hoàng Đế" to "https://images.unsplash.com/photo-1573655554431-f3c4d0c3869d?w=600",
         "Bạch Tuộc Nhật" to "https://images.unsplash.com/photo-1559737558-2f5a35f4523b?w=600",
         "Mực Ống Tươi" to "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?w=600",
         "Sò Điệp Nhật" to "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=600",
-        "Tôm Sú" to "https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=600",
-        "Nấm Kim Châm" to "https://images.unsplash.com/photo-1611329857570-f02f340e7378?w=600",
+        "Tôm Sú" to "https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=600"
+        ,
+        "Nấm Kim Châm" to "https://images.unsplash.com/photo-1769195045391-a970e273e07f?w=600",
         "Nấm Hương Tươi" to "https://images.unsplash.com/photo-1611329857570-f02f340e7378?w=600",
         "Cải Thảo" to "https://images.unsplash.com/photo-1576181256399-834e3b3a49bf?w=600",
         "Rau Cải Cúc" to "https://images.unsplash.com/photo-1576181256399-834e3b3a49bf?w=600",
         "Bắp Cải Tím" to "https://images.unsplash.com/photo-1567375698348-5d9d5ae99de0?w=600",
         "Khoai Môn" to "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=600",
         "Đậu Phụ Non" to "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600",
-        "Mì Udon" to "https://images.unsplash.com/photo-1618841557871-b4664fbf0cb3?w=600",
+        "Mì Udon" to "https://images.unsplash.com/photo-1599314250681-8e05113e0e1b?w=600",
         "Bún Tươi" to "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600",
         "Mì Ramen" to "https://images.unsplash.com/photo-1618841557871-b4664fbf0cb3?w=600",
         "Đậu Hũ Ky" to "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600",
@@ -107,8 +108,8 @@ class PosViewModel : ViewModel() {
         "Sữa Chua Nếp Cẩm" to "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600",
         "Trái Cây Thập Cẩm" to "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=600",
         "Bánh Flan Caramel" to "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600",
-        "Lẩu Tứ Xuyên" to "https://images.unsplash.com/photo-1552611052-33e04de081de?w=600",
-        "Lẩu Nấm" to "https://images.unsplash.com/photo-1583032015879-e5022cb87c3b?w=600",
+        "Lẩu Tứ Xuyên" to "https://images.unsplash.com/photo-1611345157614-26d3bdd10c93?w=600",
+        "Lẩu Nấm" to "https://images.unsplash.com/photo-1767354063743-a296165b0685?w=600",
         "Lẩu Nấm Thanh Đạm" to "https://images.unsplash.com/photo-1583032015879-e5022cb87c3b?w=600",
         "Lẩu Sa Tế Hải Sản" to "https://images.unsplash.com/photo-1552611052-33e04de081de?w=600",
         "Lẩu Gà Ớt Hiểm" to "https://images.unsplash.com/photo-1552611052-33e04de081de?w=600",
@@ -177,12 +178,12 @@ class PosViewModel : ViewModel() {
             .addOnSuccessListener { snapshot ->
                 snapshot.documents.forEach { doc ->
                     val currentUrl = doc.getString("imageUrl").orEmpty()
-                    if (currentUrl.isBlank()) {
-                        val name = doc.getString("name").orEmpty()
-                        val category = doc.getString("category").orEmpty()
-                        val newUrl = imageUrlFor(name, category)
-                        doc.reference.update("imageUrl", newUrl)
-                        Log.d("PosViewModel", "Backfilled imageUrl for '$name'")
+                    val name = doc.getString("name").orEmpty()
+                    val category = doc.getString("category").orEmpty()
+                    val expectedUrl = imageUrlFor(name, category)
+                    if (currentUrl != expectedUrl) {
+                        doc.reference.update("imageUrl", expectedUrl)
+                        Log.d("PosViewModel", "Synced imageUrl for '$name'")
                     }
                 }
             }
