@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -38,9 +39,23 @@ class PosViewModel : ViewModel() {
     private val _newOrderEvent = MutableSharedFlow<String>(extraBufferCapacity = 10)
     val newOrderEvent: SharedFlow<String> = _newOrderEvent.asSharedFlow()
 
+    private val _dishReadyEvent = MutableSharedFlow<Pair<String, String>>(extraBufferCapacity = 10)
+    val dishReadyEvent: SharedFlow<Pair<String, String>> = _dishReadyEvent.asSharedFlow()
+
     val pendingItemCount: StateFlow<Int> = _activeOrders.map { orders ->
         orders.sumOf { order -> order.items.count { it.status == "Pending" } }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    val topSellingItems: StateFlow<List<MenuItem>> = combine(_menuItems, _closedOrders) { menu, closed ->
+        if (closed.isEmpty()) {
+            menu.filter { it.isAvailable }.take(6)
+        } else {
+            val counts = closed.flatMap { it.items }.groupingBy { it.menuItemId }.eachCount()
+            menu.filter { it.isAvailable }
+                .sortedByDescending { counts[it.id] ?: 0 }
+                .take(6)
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
     val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
@@ -219,6 +234,7 @@ class PosViewModel : ViewModel() {
     }
 
     private val prevPendingCount = mutableMapOf<String, Int>()
+    private val prevDoneItemCounts = mutableMapOf<String, Map<String, Int>>() // orderId -> { itemName -> count }
     private var ordersInitialized = false
 
     private fun listenToActiveOrders() {
@@ -233,6 +249,7 @@ class PosViewModel : ViewModel() {
 
                 if (ordersInitialized) {
                     orders.forEach { order ->
+                        // 1. Check for new Pending items (Staff notification)
                         val newCount = order.items.count { it.status == "Pending" }
                         val oldCount = prevPendingCount[order.id] ?: 0
                         if (newCount > oldCount) {
@@ -247,12 +264,32 @@ class PosViewModel : ViewModel() {
                                 _newOrderEvent.emit(msg)
                             }
                         }
+
+                        // 2. Check for new Done items (Customer notification)
+                        val currentDoneCounts = order.items.filter { it.status == "Done" }
+                            .groupingBy { it.name }.eachCount()
+                        val previousDoneCounts = prevDoneItemCounts[order.id] ?: emptyMap()
+
+                        currentDoneCounts.forEach { (itemName, count) ->
+                            val prevCount = previousDoneCounts[itemName] ?: 0
+                            if (count > prevCount) {
+                                val msg = "món $itemName của bạn đã xong, Vui lòng chờ ít phút để được phục vụ"
+                                viewModelScope.launch {
+                                    _dishReadyEvent.emit(Pair(order.tableId, msg))
+                                }
+                            }
+                        }
+                        prevDoneItemCounts[order.id] = currentDoneCounts
                     }
                 }
 
                 prevPendingCount.clear()
                 orders.forEach { order ->
                     prevPendingCount[order.id] = order.items.count { it.status == "Pending" }
+                    if (!ordersInitialized) {
+                        prevDoneItemCounts[order.id] = order.items.filter { it.status == "Done" }
+                            .groupingBy { it.name }.eachCount()
+                    }
                 }
                 ordersInitialized = true
                 _activeOrders.value = orders
@@ -276,6 +313,11 @@ class PosViewModel : ViewModel() {
 
     fun updateTableStatus(tableId: String, status: String) {
         db.collection("tables").document(tableId).update("status", status)
+    }
+
+    fun updateTableFcmToken(tableId: String, token: String) {
+        db.collection("tables").document(tableId).update("fcmToken", token)
+            .addOnSuccessListener { Log.d("FCM", "Đã cập nhật Token cho bàn $tableId") }
     }
 
     fun addTable(name: String, capacity: Int) {
@@ -423,5 +465,17 @@ class PosViewModel : ViewModel() {
         val updatedOrder = _activeOrders.value.find { it.id == orderId } ?: return
         db.collection("orders").document(orderId)
             .update(mapOf("items" to updatedOrder.items, "totalAmount" to updatedOrder.totalAmount))
+    }
+
+    fun callStaff(tableId: String) {
+        val msg = "Bàn $tableId đang gọi nhân viên!"
+        val notif = NotificationItem(
+            id = "call_${tableId}_${System.currentTimeMillis()}",
+            message = msg
+        )
+        viewModelScope.launch {
+            _notifications.value = listOf(notif) + _notifications.value
+            _newOrderEvent.emit(msg)
+        }
     }
 }

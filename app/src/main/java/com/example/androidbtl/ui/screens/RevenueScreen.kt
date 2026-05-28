@@ -2,397 +2,129 @@ package com.example.androidbtl.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.TableRestaurant
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.androidbtl.data.models.Order
-import com.example.androidbtl.ui.components.StaffNotificationBell
-import com.example.androidbtl.ui.theme.ActionGreen
 import com.example.androidbtl.ui.theme.BrandYellow
+import com.example.androidbtl.ui.theme.TextPrimary
 import com.example.androidbtl.viewmodel.PosViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-private enum class RevenueFilter(val label: String) {
-    TODAY("Hôm nay"),
-    WEEK("7 ngày"),
-    MONTH("30 ngày"),
-    ALL("Tất cả")
-}
-
 @Composable
 fun RevenueScreen(viewModel: PosViewModel) {
     val closedOrders by viewModel.closedOrders.collectAsState()
-    val notifications by viewModel.notifications.collectAsState()
-    val unreadCount by viewModel.unreadCount.collectAsState()
-
-    var selectedFilter by remember { mutableStateOf(RevenueFilter.TODAY) }
-
-    val filtered = remember(closedOrders, selectedFilter) {
-        val now = System.currentTimeMillis()
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        val startOfDay = cal.timeInMillis
-
-        when (selectedFilter) {
-            RevenueFilter.TODAY -> closedOrders.filter { it.timestamp >= startOfDay }
-            RevenueFilter.WEEK -> closedOrders.filter { it.timestamp >= now - 7 * 24 * 3600 * 1000L }
-            RevenueFilter.MONTH -> closedOrders.filter { it.timestamp >= now - 30 * 24 * 3600 * 1000L }
-            RevenueFilter.ALL -> closedOrders
-        }
-    }
-
-    val totalRevenue = filtered.sumOf { it.totalAmount }
-    val orderCount = filtered.size
-    val avgRevenue = if (orderCount > 0) totalRevenue / orderCount else 0.0
-
-    val revenueByTable = filtered
-        .groupBy { it.tableId }
-        .map { (tableId, orders) -> tableId to orders.sumOf { it.totalAmount } }
-        .sortedByDescending { it.second }
-        .take(5)
-
-    val dateFormat = remember { SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()) }
+    val totalRevenue = closedOrders.sumOf { it.totalAmount }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color(0xFFF8F9FA))
     ) {
-        // Header
+        // Top Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
+            color = Color.White,
             shadowElevation = 2.dp
         ) {
             Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "Báo cáo Doanh thu",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    StaffNotificationBell(
-                        notifications = notifications,
-                        unreadCount = unreadCount,
-                        onOpen = { viewModel.markAllRead() },
-                        onClear = { viewModel.clearNotifications() }
-                    )
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                Text(
+                    "Báo cáo Doanh thu",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                    color = TextPrimary
+                )
+                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
             }
         }
 
-        Column(
+        // Revenue Card
+        Card(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            colors = CardDefaults.cardColors(containerColor = Color.Black),
+            shape = RoundedCornerShape(20.dp)
         ) {
-            // Filter chips
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                RevenueFilter.entries.forEach { filter ->
-                    FilterChip(
-                        selected = selectedFilter == filter,
-                        onClick = { selectedFilter = filter },
-                        label = { Text(filter.label, fontSize = 13.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = BrandYellow,
-                            selectedLabelColor = Color.Black
-                        )
-                    )
-                }
-            }
-
-            // Summary cards
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                SummaryCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Filled.TrendingUp,
-                    iconTint = ActionGreen,
-                    label = "Doanh thu",
-                    value = formatMoney(totalRevenue)
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Tổng doanh thu hôm nay", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "${"%,.0f".format(totalRevenue)}đ",
+                    color = BrandYellow,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black
                 )
-                SummaryCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Filled.Receipt,
-                    iconTint = BrandYellow,
-                    label = "Số đơn",
-                    value = orderCount.toString()
-                )
-                SummaryCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Filled.BarChart,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    label = "TB/đơn",
-                    value = formatMoney(avgRevenue)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Tổng cộng ${closedOrders.size} đơn hàng đã hoàn tất",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 12.sp
                 )
             }
-
-            // Top tables
-            if (revenueByTable.isNotEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.TableRestaurant,
-                                contentDescription = null,
-                                tint = BrandYellow,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                "Doanh thu theo bàn",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        val maxRevenue = revenueByTable.first().second
-                        revenueByTable.forEachIndexed { index, (tableId, revenue) ->
-                            TableRevenueRow(
-                                rank = index + 1,
-                                tableId = tableId,
-                                revenue = revenue,
-                                maxRevenue = maxRevenue
-                            )
-                            if (index < revenueByTable.lastIndex) {
-                                Spacer(modifier = Modifier.height(10.dp))
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Order list
-            if (filtered.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Filled.Receipt,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Chưa có doanh thu trong khoảng thời gian này",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "Chi tiết đơn hàng (${filtered.size})",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        filtered.forEachIndexed { index, order ->
-                            OrderRevenueRow(order = order, dateFormat = dateFormat)
-                            if (index < filtered.lastIndex) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(80.dp))
         }
-    }
-}
 
-@Composable
-private fun SummaryCard(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    iconTint: Color,
-    label: String,
-    value: String
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(iconTint.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
-            }
-            Text(
-                value,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                maxLines = 1
-            )
-            Text(
-                label,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-private fun TableRevenueRow(
-    rank: Int,
-    tableId: String,
-    revenue: Double,
-    maxRevenue: Double
-) {
-    val rankColor = when (rank) {
-        1 -> Color(0xFFFFD700)
-        2 -> Color(0xFFC0C0C0)
-        3 -> Color(0xFFCD7F32)
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val progress = if (maxRevenue > 0) (revenue / maxRevenue).toFloat() else 0f
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                "#$rank",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 14.sp,
-                color = rankColor,
-                modifier = Modifier.width(28.dp)
-            )
-            Text(
-                "Bàn $tableId",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                formatMoney(revenue),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = ActionGreen
-            )
-        }
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .padding(start = 38.dp),
-            color = BrandYellow,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun OrderRevenueRow(order: Order, dateFormat: SimpleDateFormat) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column {
-            Text(
-                "Bàn ${order.tableId}",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                "${order.items.filter { it.status != "Cart" }.sumOf { it.quantity }} món  •  ${dateFormat.format(Date(order.timestamp))}",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
         Text(
-            formatMoney(order.totalAmount),
+            "Lịch sử giao dịch",
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            color = BrandYellow
+            color = TextPrimary
         )
+
+        if (closedOrders.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Chưa có giao dịch nào hoàn tất", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(closedOrders) { order ->
+                    TransactionRow(order = order)
+                }
+                item { Spacer(modifier = Modifier.height(100.dp)) }
+            }
+        }
     }
 }
 
-private fun formatMoney(amount: Double): String {
-    return if (amount >= 1_000_000) {
-        "${"%.1f".format(amount / 1_000_000)}tr"
-    } else {
-        "${"%,.0f".format(amount)}đ"
+@Composable
+fun TransactionRow(order: com.example.androidbtl.data.models.Order) {
+    val date = Date(order.timestamp)
+    val format = SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault())
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White,
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Bàn ${order.tableId}", fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text(format.format(date), fontSize = 11.sp, color = Color.Gray)
+            }
+            Text(
+                "${"%,.0f".format(order.totalAmount)}đ",
+                fontWeight = FontWeight.ExtraBold,
+                color = TextPrimary,
+                fontSize = 16.sp
+            )
+        }
     }
 }

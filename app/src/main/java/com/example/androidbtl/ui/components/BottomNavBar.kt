@@ -2,6 +2,7 @@ package com.example.androidbtl.ui.components
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -15,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -39,6 +41,7 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
     // Customer Screens
     object CusHome : Screen("cus_home", Icons.Filled.Home, "Trang chủ")
     object CusMenu : Screen("cus_menu", Icons.Filled.RestaurantMenu, "Thực đơn")
+    object CusOffers : Screen("cus_offers", Icons.Filled.LocalOffer, "Ưu đãi")
     object CusBill : Screen("cus_bill/{tableId}", Icons.Filled.Receipt, "Hóa đơn")
     object CusBooking : Screen("cus_booking/{tableId}", Icons.AutoMirrored.Filled.List, "Giỏ hàng")
     object CusProfile : Screen("cus_profile", Icons.Filled.AccountCircle, "Tài khoản")
@@ -52,12 +55,12 @@ fun AppBottomNavBar(
     pendingItemCount: Int = 0
 ) {
     val items = if (isCustomer) {
-        listOf(Screen.CusHome, Screen.CusMenu, Screen.CusBill, Screen.CusProfile)
+        listOf(Screen.CusHome, Screen.CusMenu, Screen.CusOffers, Screen.CusBill, Screen.CusProfile)
     } else {
         listOf(Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Billing, Screen.Revenue)
     }
 
-    val navBackStackEntry = navController.currentBackStackEntryAsState().value
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     // Hide bottom bar on login and deep POS screens

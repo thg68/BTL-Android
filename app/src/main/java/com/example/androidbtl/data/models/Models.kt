@@ -6,7 +6,8 @@ data class RestaurantTable(
     val id: String = "",
     val name: String = "",
     val status: String = "Trống", // Trống, Đang phục vụ, Đã đặt
-    val capacity: Int = 4
+    val capacity: Int = 4,
+    val fcmToken: String = "" // Lưu token để gửi thông báo đẩy
 )
 
 data class MenuItem(
