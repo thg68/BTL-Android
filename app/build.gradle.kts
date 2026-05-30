@@ -6,11 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.androidbtl"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.androidbtl"
@@ -38,6 +34,19 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/INDEX.LIST"
+            pickFirsts += "META-INF/DEPENDENCIES"
+            pickFirsts += "META-INF/LICENSE.md"
+            pickFirsts += "META-INF/NOTICE.md"
+            pickFirsts += "META-INF/license.txt"
+            pickFirsts += "META-INF/notice.txt"
+            pickFirsts += "META-INF/ASL2.0"
+            pickFirsts += "META-INF/io.netty.versions.properties"
+        }
+    }
 }
 
 dependencies {
@@ -57,6 +66,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.coil.compose)
     implementation(libs.qrcode.kotlin)
+    
+    // Thư viện hỗ trợ FCM v1
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.24.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

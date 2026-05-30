@@ -1,13 +1,15 @@
 package com.example.androidbtl.viewmodel
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.androidbtl.data.models.MenuItem
 import com.example.androidbtl.data.models.NotificationItem
 import com.example.androidbtl.data.models.Order
 import com.example.androidbtl.data.models.OrderItem
 import com.example.androidbtl.data.models.RestaurantTable
+import com.example.androidbtl.utils.FcmSender
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,9 +21,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class PosViewModel : ViewModel() {
+class PosViewModel(application: Application) : AndroidViewModel(application) {
     private val db = FirebaseFirestore.getInstance()
 
     private val _tables = MutableStateFlow<List<RestaurantTable>>(emptyList())
@@ -65,7 +68,7 @@ class PosViewModel : ViewModel() {
     }.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     fun markAllRead() {
-        _notifications.value = _notifications.value.map { it.copy(isRead = true) }
+        _notifications.update { current -> current.map { it.copy(isRead = true) } }
     }
 
     fun clearNotifications() {
@@ -103,8 +106,7 @@ class PosViewModel : ViewModel() {
         "Bạch Tuộc Nhật" to "https://images.unsplash.com/photo-1559737558-2f5a35f4523b?w=600",
         "Mực Ống Tươi" to "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?w=600",
         "Sò Điệp Nhật" to "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=600",
-        "Tôm Sú" to "https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=600"
-        ,
+        "Tôm Sú" to "https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=600",
         "Nấm Kim Châm" to "https://images.unsplash.com/photo-1769195045391-a970e273e07f?w=600",
         "Nấm Hương Tươi" to "https://images.unsplash.com/photo-1611329857570-f02f340e7378?w=600",
         "Cải Thảo" to "https://images.unsplash.com/photo-1576181256399-834e3b3a49bf?w=600",
@@ -234,65 +236,70 @@ class PosViewModel : ViewModel() {
     }
 
     private val prevPendingCount = mutableMapOf<String, Int>()
-    private val prevDoneItemCounts = mutableMapOf<String, Map<String, Int>>() // orderId -> { itemName -> count }
+    private val prevDoneItemCounts = mutableMapOf<String, Map<String, Int>>()
     private var ordersInitialized = false
 
     private fun listenToActiveOrders() {
         db.collection("orders").whereEqualTo("status", "Open").addSnapshotListener { snapshot, e ->
-            if (e != null) return@addSnapshotListener
+            if (e != null) {
+                Log.e("PosViewModel", "Listen active orders failed", e)
+                return@addSnapshotListener
+            }
             if (snapshot != null) {
-                val orders = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Order::class.java)?.copy(id = doc.id)?.let { order ->
-                        order.copy(totalAmount = order.items.sumOf { it.price * it.quantity })
-                    }
-                }
-
-                if (ordersInitialized) {
-                    orders.forEach { order ->
-                        // 1. Check for new Pending items (Staff notification)
-                        val newCount = order.items.count { it.status == "Pending" }
-                        val oldCount = prevPendingCount[order.id] ?: 0
-                        if (newCount > oldCount) {
-                            val diff = newCount - oldCount
-                            val msg = "Bàn ${order.tableId} vừa gửi $diff món mới!"
-                            val notif = NotificationItem(
-                                id = "${order.id}_${System.currentTimeMillis()}",
-                                message = msg
-                            )
-                            viewModelScope.launch {
-                                _notifications.value = listOf(notif) + _notifications.value
-                                _newOrderEvent.emit(msg)
-                            }
+                try {
+                    val orders = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Order::class.java)?.copy(id = doc.id)?.let { order ->
+                            order.copy(totalAmount = order.items.sumOf { it.price * it.quantity })
                         }
+                    }
 
-                        // 2. Check for new Done items (Customer notification)
-                        val currentDoneCounts = order.items.filter { it.status == "Done" }
-                            .groupingBy { it.name }.eachCount()
-                        val previousDoneCounts = prevDoneItemCounts[order.id] ?: emptyMap()
-
-                        currentDoneCounts.forEach { (itemName, count) ->
-                            val prevCount = previousDoneCounts[itemName] ?: 0
-                            if (count > prevCount) {
-                                val msg = "món $itemName của bạn đã xong, Vui lòng chờ ít phút để được phục vụ"
+                    if (ordersInitialized) {
+                        orders.forEach { order ->
+                            val newCount = order.items.count { it.status == "Pending" }
+                            val oldCount = prevPendingCount[order.id] ?: 0
+                            if (newCount > oldCount) {
+                                val diff = newCount - oldCount
+                                val msg = "Bàn ${order.tableId} vừa gửi $diff món mới!"
+                                val notif = NotificationItem(
+                                    id = "${order.id}_${System.currentTimeMillis()}",
+                                    message = msg
+                                )
                                 viewModelScope.launch {
-                                    _dishReadyEvent.emit(Pair(order.tableId, msg))
+                                    _notifications.update { current -> listOf(notif) + current }
+                                    _newOrderEvent.emit(msg)
                                 }
                             }
-                        }
-                        prevDoneItemCounts[order.id] = currentDoneCounts
-                    }
-                }
 
-                prevPendingCount.clear()
-                orders.forEach { order ->
-                    prevPendingCount[order.id] = order.items.count { it.status == "Pending" }
-                    if (!ordersInitialized) {
-                        prevDoneItemCounts[order.id] = order.items.filter { it.status == "Done" }
-                            .groupingBy { it.name }.eachCount()
+                            val currentDoneCounts = order.items.filter { it.status == "Done" }
+                                .groupingBy { it.name }.eachCount()
+                            val previousDoneCounts = prevDoneItemCounts[order.id] ?: emptyMap()
+
+                            currentDoneCounts.forEach { (itemName, count) ->
+                                val prevCount = previousDoneCounts[itemName] ?: 0
+                                if (count > prevCount) {
+                                    val msg = "món $itemName của bạn đã xong, Vui lòng chờ ít phút để được phục vụ"
+                                    viewModelScope.launch {
+                                        _dishReadyEvent.emit(Pair(order.tableId, msg))
+                                    }
+                                }
+                            }
+                            prevDoneItemCounts[order.id] = currentDoneCounts
+                        }
                     }
+
+                    prevPendingCount.clear()
+                    orders.forEach { order ->
+                        prevPendingCount[order.id] = order.items.count { it.status == "Pending" }
+                        if (!ordersInitialized) {
+                            prevDoneItemCounts[order.id] = order.items.filter { it.status == "Done" }
+                                .groupingBy { it.name }.eachCount()
+                        }
+                    }
+                    ordersInitialized = true
+                    _activeOrders.value = orders
+                } catch (ex: Exception) {
+                    Log.e("PosViewModel", "Error processing active orders", ex)
                 }
-                ordersInitialized = true
-                _activeOrders.value = orders
             }
         }
     }
@@ -312,10 +319,12 @@ class PosViewModel : ViewModel() {
     }
 
     fun updateTableStatus(tableId: String, status: String) {
+        if (tableId.isBlank()) return
         db.collection("tables").document(tableId).update("status", status)
     }
 
     fun updateTableFcmToken(tableId: String, token: String) {
+        if (tableId.isBlank()) return
         db.collection("tables").document(tableId).update("fcmToken", token)
             .addOnSuccessListener { Log.d("FCM", "Đã cập nhật Token cho bàn $tableId") }
     }
@@ -326,14 +335,17 @@ class PosViewModel : ViewModel() {
     }
 
     fun updateTable(tableId: String, name: String, capacity: Int) {
+        if (tableId.isBlank()) return
         db.collection("tables").document(tableId).update(mapOf("name" to name, "capacity" to capacity))
     }
 
     fun deleteTable(tableId: String) {
+        if (tableId.isBlank()) return
         db.collection("tables").document(tableId).delete()
     }
 
     fun createOrderForTable(tableId: String) {
+        if (tableId.isBlank()) return
         val newOrder = Order(tableId = tableId, status = "Open")
         db.collection("orders").add(newOrder).addOnSuccessListener {
             updateTableStatus(tableId, "Đang phục vụ")
@@ -341,6 +353,7 @@ class PosViewModel : ViewModel() {
     }
 
     fun ensureOrderForTable(tableId: String) {
+        if (tableId.isBlank()) return
         db.collection("orders")
             .whereEqualTo("tableId", tableId)
             .whereEqualTo("status", "Open")
@@ -359,7 +372,7 @@ class PosViewModel : ViewModel() {
     }
 
     fun addMenuItemToOrder(orderId: String, menuItem: MenuItem) {
-        if (!menuItem.isAvailable) return
+        if (orderId.isBlank() || !menuItem.isAvailable) return
 
         val currentOrders = _activeOrders.value.toMutableList()
         val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
@@ -395,27 +408,63 @@ class PosViewModel : ViewModel() {
     }
 
     fun updateOrderItemStatus(orderId: String, itemIndex: Int, newStatus: String) {
+        if (orderId.isBlank()) return
         db.collection("orders").document(orderId).get().addOnSuccessListener { doc ->
             val order = doc.toObject(Order::class.java)
             if (order != null) {
                 val mutableItems = order.items.toMutableList()
                 if (itemIndex in mutableItems.indices) {
-                    mutableItems[itemIndex] = mutableItems[itemIndex].copy(status = newStatus)
+                    val item = mutableItems[itemIndex]
+                    mutableItems[itemIndex] = item.copy(status = newStatus)
                     db.collection("orders").document(orderId).update("items", mutableItems)
+                        .addOnSuccessListener {
+                            if (newStatus == "Done") {
+                                sendFcmToTable(order.tableId, "Món ăn hoàn tất", "Món ${item.name} của bạn đã sẵn sàng!")
+                            }
+                        }
                 }
             }
         }
     }
 
+    private fun sendFcmToTable(tableId: String, title: String, message: String) {
+        if (tableId.isBlank()) return
+        db.collection("tables").document(tableId).get().addOnSuccessListener { doc ->
+            val token = doc.getString("fcmToken") ?: ""
+            if (token.isNotBlank()) {
+                FcmSender.sendNotification(getApplication(), token, title, message)
+            } else {
+                Log.e("FCM", "Không tìm thấy Token cho bàn $tableId")
+            }
+        }
+    }
+
     fun closeOrder(orderId: String, tableId: String) {
-        val total = _activeOrders.value.find { it.id == orderId }
-            ?.items?.sumOf { it.price * it.quantity } ?: 0.0
-        db.collection("orders").document(orderId)
-            .update(mapOf("status" to "Closed", "totalAmount" to total))
-            .addOnSuccessListener { updateTableStatus(tableId, "Trống") }
+        if (orderId.isBlank()) return
+        try {
+            val order = _activeOrders.value.find { it.id == orderId }
+            val total = order?.items?.sumOf { it.price * it.quantity } ?: 0.0
+            
+            db.collection("orders").document(orderId)
+                .update(mapOf(
+                    "status" to "Closed", 
+                    "totalAmount" to total,
+                    "timestamp" to System.currentTimeMillis()
+                ))
+                .addOnSuccessListener { 
+                    if (tableId.isNotBlank()) updateTableStatus(tableId, "Trống")
+                    Log.d("PosViewModel", "Order $orderId closed successfully")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("PosViewModel", "Failed to close order $orderId", e)
+                }
+        } catch (ex: Exception) {
+            Log.e("PosViewModel", "Crash in closeOrder", ex)
+        }
     }
 
     fun sendOrderToKitchen(orderId: String) {
+        if (orderId.isBlank()) return
         val order = _activeOrders.value.find { it.id == orderId } ?: return
         val cartItems = order.items.filter { it.status == "Cart" }
         if (cartItems.isEmpty()) return
@@ -424,12 +473,10 @@ class PosViewModel : ViewModel() {
             if (it.status == "Cart") it.copy(status = "Pending") else it
         }
 
-        // Optimistic local update
-        _activeOrders.value = _activeOrders.value.map {
-            if (it.id == orderId) it.copy(items = updatedItems) else it
+        _activeOrders.update { current ->
+            current.map { if (it.id == orderId) it.copy(items = updatedItems) else it }
         }
 
-        // Persist to Firestore
         db.collection("orders").document(orderId).update("items", updatedItems)
     }
 
@@ -440,25 +487,33 @@ class PosViewModel : ViewModel() {
     }
 
     fun updateMenuItem(item: MenuItem) {
+        if (item.id.isBlank()) return
         db.collection("menu_items").document(item.id).set(item)
     }
 
+    fun findMenuItemById(id: String): MenuItem? {
+        return _menuItems.value.find { it.id == id }
+    }
+
     fun deleteMenuItem(menuItemId: String) {
+        if (menuItemId.isBlank()) return
         db.collection("menu_items").document(menuItemId).delete()
     }
 
     fun removeOrderItem(orderId: String, menuItemId: String) {
-        val currentOrders = _activeOrders.value.toMutableList()
-        val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
-        if (orderIdx != -1) {
-            val order = currentOrders[orderIdx]
-            val mutableItems = order.items.toMutableList()
-            val itemIdx = mutableItems.indexOfFirst { it.menuItemId == menuItemId && it.status == "Cart" }
-            if (itemIdx != -1) {
-                val removed = mutableItems.removeAt(itemIdx)
-                val newTotal = order.totalAmount - (removed.price * removed.quantity)
-                currentOrders[orderIdx] = order.copy(items = mutableItems, totalAmount = newTotal)
-                _activeOrders.value = currentOrders
+        if (orderId.isBlank()) return
+        
+        _activeOrders.update { current ->
+            current.map { order ->
+                if (order.id == orderId) {
+                    val mutableItems = order.items.toMutableList()
+                    val itemIdx = mutableItems.indexOfFirst { it.menuItemId == menuItemId && it.status == "Cart" }
+                    if (itemIdx != -1) {
+                        val removed = mutableItems.removeAt(itemIdx)
+                        val newTotal = order.totalAmount - (removed.price * removed.quantity)
+                        order.copy(items = mutableItems, totalAmount = newTotal)
+                    } else order
+                } else order
             }
         }
 
@@ -468,13 +523,14 @@ class PosViewModel : ViewModel() {
     }
 
     fun callStaff(tableId: String) {
+        if (tableId.isBlank()) return
         val msg = "Bàn $tableId đang gọi nhân viên!"
         val notif = NotificationItem(
             id = "call_${tableId}_${System.currentTimeMillis()}",
             message = msg
         )
         viewModelScope.launch {
-            _notifications.value = listOf(notif) + _notifications.value
+            _notifications.update { current -> listOf(notif) + current }
             _newOrderEvent.emit(msg)
         }
     }

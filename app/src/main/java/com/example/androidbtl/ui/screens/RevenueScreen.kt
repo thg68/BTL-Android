@@ -22,7 +22,20 @@ import java.util.*
 @Composable
 fun RevenueScreen(viewModel: PosViewModel) {
     val closedOrders by viewModel.closedOrders.collectAsState()
-    val totalRevenue = closedOrders.sumOf { it.totalAmount }
+    
+    // Lọc đơn hàng chỉ trong ngày hôm nay
+    val todayOrders = remember(closedOrders) {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val startOfToday = calendar.timeInMillis
+        
+        closedOrders.filter { it.timestamp >= startOfToday }
+    }
+    
+    val totalRevenue = todayOrders.sumOf { it.totalAmount }
 
     Column(
         modifier = Modifier
@@ -66,7 +79,7 @@ fun RevenueScreen(viewModel: PosViewModel) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Tổng cộng ${closedOrders.size} đơn hàng đã hoàn tất",
+                    "Tổng cộng ${todayOrders.size} đơn hàng đã hoàn tất",
                     color = Color.White.copy(alpha = 0.5f),
                     fontSize = 12.sp
                 )
@@ -74,15 +87,15 @@ fun RevenueScreen(viewModel: PosViewModel) {
         }
 
         Text(
-            "Lịch sử giao dịch",
+            "Lịch sử giao dịch hôm nay",
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             fontWeight = FontWeight.Bold,
             color = TextPrimary
         )
 
-        if (closedOrders.isEmpty()) {
+        if (todayOrders.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Chưa có giao dịch nào hoàn tất", color = Color.Gray)
+                Text("Chưa có giao dịch nào hoàn tất trong hôm nay", color = Color.Gray)
             }
         } else {
             LazyColumn(
@@ -90,7 +103,7 @@ fun RevenueScreen(viewModel: PosViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(closedOrders) { order ->
+                items(todayOrders) { order ->
                     TransactionRow(order = order)
                 }
                 item { Spacer(modifier = Modifier.height(100.dp)) }

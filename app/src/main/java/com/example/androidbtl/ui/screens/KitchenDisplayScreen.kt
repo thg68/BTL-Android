@@ -1,31 +1,30 @@
 package com.example.androidbtl.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.TableBar
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.androidbtl.data.models.OrderItem
+import com.example.androidbtl.ui.components.AsyncFoodImage
 import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.components.StaffNotificationBell
 import com.example.androidbtl.ui.theme.ActionGreen
@@ -36,10 +35,14 @@ import com.example.androidbtl.viewmodel.PosViewModel
 @Composable
 fun KitchenDisplayScreen(viewModel: PosViewModel) {
     val orders by viewModel.activeOrders.collectAsState()
-    val hasAnyItem = orders.any { it.items.any { i -> i.status in listOf("Pending", "Cooking", "Done") } }
+    val menuItems by viewModel.menuItems.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
     val unreadCount by viewModel.unreadCount.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    
+    // 0: Cần làm, 1: Đang nấu, 2: Hoàn tất
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Cần làm", "Đang nấu", "Hoàn tất")
 
     LaunchedEffect(Unit) {
         viewModel.newOrderEvent.collect { message ->
@@ -48,29 +51,24 @@ fun KitchenDisplayScreen(viewModel: PosViewModel) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
+    Scaffold(
+        topBar = {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 2.dp
+                shadowElevation = 8.dp
             ) {
-                Column {
+                Column(modifier = Modifier.statusBarsPadding()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             "Điều phối Nhà Bếp",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         StaffNotificationBell(
@@ -80,156 +78,208 @@ fun KitchenDisplayScreen(viewModel: PosViewModel) {
                             onClear = { viewModel.clearNotifications() }
                         )
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                }
-            }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            KdsHeader(title = "CẦN LÀM", color = ActionRed, modifier = Modifier.weight(1f))
-            KdsHeader(title = "ĐANG NẤU", color = BrandYellow, modifier = Modifier.weight(1f))
-            KdsHeader(title = "HOÀN TẤT", color = ActionGreen, modifier = Modifier.weight(1f))
-        }
-
-        if (!hasAnyItem) {
-            EmptyState(
-                icon = Icons.Filled.RestaurantMenu,
-                title = "Chưa có món nào cần xử lý",
-                description = "Khi khách gửi món sẽ tự xuất hiện ở đây"
-            )
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                KdsColumn(orders = orders, targetStatus = "Pending", modifier = Modifier.weight(1f)) { orderId, index ->
-                    viewModel.updateOrderItemStatus(orderId, index, "Cooking")
-                }
-                KdsColumn(orders = orders, targetStatus = "Cooking", modifier = Modifier.weight(1f)) { orderId, index ->
-                    viewModel.updateOrderItemStatus(orderId, index, "Done")
-                }
-                KdsColumn(orders = orders, targetStatus = "Done", modifier = Modifier.weight(1f)) { _, _ -> }
-            }
-        }
-        } // end Column
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
-        ) { data ->
-            Snackbar(
-                snackbarData = data,
-                containerColor = ActionRed,
-                contentColor = Color.White
-            )
-        }
-    } // end Box
-}
-
-@Composable
-fun KdsHeader(title: String, color: Color, modifier: Modifier = Modifier) {
-    Surface(
-        color = color.copy(alpha = 0.15f),
-        shape = RoundedCornerShape(8.dp),
-        modifier = modifier
-    ) {
-        Text(
-            text = title,
-            modifier = Modifier.padding(vertical = 8.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 12.sp,
-            color = color
-        )
-    }
-}
-
-@Composable
-fun KdsColumn(
-    orders: List<com.example.androidbtl.data.models.Order>,
-    targetStatus: String,
-    modifier: Modifier = Modifier,
-    onItemClick: (String, Int) -> Unit
-) {
-    LazyColumn(
-        modifier = modifier.fillMaxHeight(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(bottom = 100.dp)
-    ) {
-        orders.forEach { order ->
-            itemsIndexed(order.items, key = { idx, _ -> "${order.id}_$idx" }) { index, item ->
-                AnimatedVisibility(
-                    visible = item.status == targetStatus,
-                    enter = scaleIn() + fadeIn(),
-                    exit = scaleOut() + fadeOut()
-                ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(12.dp)
+                    // --- SEGMENTED TAB (Pill Shape) ---
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp) // Sử dụng tham số tường minh start/end/bottom
+                            .height(54.dp)
+                            .background(Color(0xFFF1F1F1), RoundedCornerShape(27.dp))
+                            .padding(4.dp)
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    item.name,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Surface(
-                                    color = BrandYellow.copy(alpha = 0.15f),
-                                    shape = RoundedCornerShape(4.dp)
-                                ) {
-                                    Text(
-                                        "x${item.quantity}",
-                                        color = BrandYellow,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            tabs.forEachIndexed { index, title ->
+                                val count = when(index) {
+                                    0 -> orders.sumOf { o -> o.items.count { it.status == "Pending" } }
+                                    1 -> orders.sumOf { o -> o.items.count { it.status == "Cooking" } }
+                                    else -> orders.sumOf { o -> o.items.count { it.status == "Done" } }
                                 }
-                            }
-                            Text(
-                                "Bàn: ${order.tableId}",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp
-                            )
+                                
+                                val isSelected = selectedTab == index
+                                val tabColor = when(index) {
+                                    0 -> ActionRed
+                                    1 -> BrandYellow
+                                    else -> ActionGreen
+                                }
 
-                            if (targetStatus != "Done") {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Button(
-                                    onClick = { onItemClick(order.id, index) },
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(36.dp),
-                                    contentPadding = PaddingValues(0.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (targetStatus == "Pending") ActionRed else BrandYellow
-                                    ),
-                                    shape = RoundedCornerShape(8.dp)
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(23.dp))
+                                        .background(if (isSelected) tabColor else Color.Transparent)
+                                        .clickable { selectedTab = index },
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        if (targetStatus == "Pending") "CHẾ BIẾN" else "HOÀN TẤT",
-                                        color = if (targetStatus == "Pending") Color.White else Color.Black,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = title,
+                                            color = if (isSelected) (if (index == 1) Color.Black else Color.White) else Color.Gray,
+                                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                        if (count > 0) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                color = if (isSelected) Color.White.copy(alpha = 0.25f) else Color.Gray.copy(alpha = 0.1f),
+                                                shape = CircleShape
+                                            ) {
+                                                Text(
+                                                    text = "$count",
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = if (isSelected) (if (index == 1) Color.Black else Color.White) else Color.Gray
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+                }
+            }
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { innerPadding ->
+        val currentStatus = when(selectedTab) {
+            0 -> "Pending"
+            1 -> "Cooking"
+            else -> "Done"
+        }
+        
+        val filteredItems = remember(orders, currentStatus) {
+            val list = mutableListOf<Triple<String, Int, OrderItem>>()
+            orders.forEach { order ->
+                order.items.forEachIndexed { index, item ->
+                    if (item.status == currentStatus) {
+                        list.add(Triple(order.id, index, item))
+                    }
+                }
+            }
+            list
+        }
+
+        if (filteredItems.isEmpty()) {
+            EmptyState(
+                icon = Icons.Default.RestaurantMenu,
+                title = "Đang trống",
+                description = "Chưa có món nào ở mục ${tabs[selectedTab]}",
+                modifier = Modifier.padding(innerPadding)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                itemsIndexed(filteredItems, key = { _, item -> "${item.first}_${item.second}_${item.third.menuItemId}" }) { _, (orderId, index, item) ->
+                    val order = orders.find { it.id == orderId }
+                    val menuItem = menuItems.find { it.id == item.menuItemId }
+                    
+                    KitchenItemCard(
+                        itemName = item.name,
+                        imageUrl = menuItem?.imageUrl ?: "",
+                        quantity = item.quantity,
+                        tableId = order?.tableId ?: "?",
+                        status = item.status,
+                        onAction = {
+                            val nextStatus = if (item.status == "Pending") "Cooking" else "Done"
+                            viewModel.updateOrderItemStatus(orderId, index, nextStatus)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun KitchenItemCard(
+    itemName: String,
+    imageUrl: String,
+    quantity: Int,
+    tableId: String,
+    status: String,
+    onAction: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Hiển thị ảnh món ăn
+                AsyncFoodImage(
+                    imageUrl = imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = itemName,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF212121),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.TableBar, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Bàn $tableId", fontSize = 14.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                    }
+                }
+                
+                Surface(
+                    color = BrandYellow.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "x$quantity",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = BrandYellow
+                    )
+                }
+            }
+
+            if (status != "Done") {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onAction,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (status == "Pending") ActionRed else BrandYellow
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = if (status == "Pending") "BẮT ĐẦU CHẾ BIẾN" else "HOÀN TẤT MÓN",
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (status == "Pending") Color.White else Color.Black
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(14.dp), tint = ActionGreen)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Món ăn đã sẵn sàng phục vụ", fontSize = 12.sp, color = ActionGreen, fontWeight = FontWeight.Bold)
                 }
             }
         }
