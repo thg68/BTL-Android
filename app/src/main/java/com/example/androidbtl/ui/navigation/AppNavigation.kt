@@ -1,9 +1,7 @@
 package com.example.androidbtl.ui.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -14,7 +12,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,9 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -35,14 +31,27 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.androidbtl.ui.components.AppBottomNavBar
 import com.example.androidbtl.ui.components.Screen
-import com.example.androidbtl.ui.screens.*
+import com.example.androidbtl.ui.screens.BillScreen
+import com.example.androidbtl.ui.screens.BookingScreen
+import com.example.androidbtl.ui.screens.HomeScreen
+import com.example.androidbtl.ui.screens.KitchenDisplayScreen
+import com.example.androidbtl.ui.screens.LoginScreen
+import com.example.androidbtl.ui.screens.OffersScreen
+import com.example.androidbtl.ui.screens.POSOrderScreen
+import com.example.androidbtl.ui.screens.ProfileScreen
+import com.example.androidbtl.ui.screens.RevenueScreen
+import com.example.androidbtl.ui.screens.StaffMenuScreen
+import com.example.androidbtl.ui.screens.TableManagementScreen
 import com.example.androidbtl.utils.NotificationHelper
 import com.example.androidbtl.viewmodel.PosViewModel
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-private const val NAV_ANIM_DURATION = 280
+private const val TABLE_DEEP_LINK = "androidbtl://table/{tableId}?code={accessCode}"
 
 @Composable
 fun AppNavigation() {
@@ -54,14 +63,56 @@ fun AppNavigation() {
     var isCustomerRole by remember { mutableStateOf<Boolean?>(null) }
     var customerTableId by remember { mutableStateOf("") }
     var hasBeenServing by remember { mutableStateOf(false) }
-    
-    val tables by posViewModel.tables.collectAsState()
-    val pendingItemCount by posViewModel.pendingItemCount.collectAsState()
+    var staffTabRoute by remember { mutableStateOf(Screen.Tables.route) }
+
+    val tables by posViewModel.tables.collectAsStateWithLifecycle()
+    val pendingItemCount by posViewModel.pendingItemCount.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val showMessage: (String) -> Unit = { message ->
         scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+
+    val loginCustomerToTable: (String, String?) -> Unit = login@{ tableId, accessCode ->
+        val normalizedTableId = tableId.trim()
+        val normalizedAccessCode = accessCode.orEmpty()
+        val table = posViewModel.tables.value.find { it.id == normalizedTableId }
+        when {
+            normalizedTableId.isBlank() -> {
+                showMessage("Vui lòng chọn bàn hợp lệ.")
+                return@login
+            }
+            table == null -> {
+                showMessage("Không tìm thấy bàn $normalizedTableId.")
+                return@login
+            }
+            table.status == "Đã đặt" -> {
+                showMessage("Bàn $normalizedTableId đã được đặt trước.")
+                return@login
+            }
+            table.status == "Đang phục vụ" && (normalizedAccessCode.isBlank() || normalizedAccessCode != table.accessCode) -> {
+                showMessage("Bàn $normalizedTableId đang có khách sử dụng.")
+                return@login
+            }
+        }
+
+        isCustomerRole = true
+        customerTableId = normalizedTableId
+        hasBeenServing = false
+        posViewModel.ensureOrderForTable(normalizedTableId)
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                posViewModel.updateTableFcmToken(normalizedTableId, token)
+            }
+        }
+
+        navController.navigate(Screen.CusHome.route) {
+            popUpTo(Screen.Login.route) { inclusive = true }
+            launchSingleTop = true
+        }
     }
 
     val navBackStackEntry: NavBackStackEntry? by navController.currentBackStackEntryAsState()
@@ -72,9 +123,7 @@ fun AppNavigation() {
     val isTableCleared = currentTable?.status == "Trống"
 
     LaunchedEffect(isTableServing) {
-        if (isTableServing) {
-            hasBeenServing = true
-        }
+        if (isTableServing) hasBeenServing = true
     }
 
     LaunchedEffect(isTableCleared, isCustomerRole) {
@@ -115,18 +164,8 @@ fun AppNavigation() {
         }
     }
 
-    val slideEnter: AnimatedContentTransitionScope<*>.() -> androidx.compose.animation.EnterTransition = {
-        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(NAV_ANIM_DURATION)) + fadeIn(tween(NAV_ANIM_DURATION))
-    }
-    val slideExit: AnimatedContentTransitionScope<*>.() -> androidx.compose.animation.ExitTransition = {
-        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(NAV_ANIM_DURATION)) + fadeOut(tween(NAV_ANIM_DURATION))
-    }
-    val slidePopEnter: AnimatedContentTransitionScope<*>.() -> androidx.compose.animation.EnterTransition = {
-        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(NAV_ANIM_DURATION)) + fadeIn(tween(NAV_ANIM_DURATION))
-    }
-    val slidePopExit: AnimatedContentTransitionScope<*>.() -> androidx.compose.animation.ExitTransition = {
-        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(NAV_ANIM_DURATION)) + fadeOut(tween(NAV_ANIM_DURATION))
-    }
+    val noEnter: () -> EnterTransition = { EnterTransition.None }
+    val noExit: () -> ExitTransition = { ExitTransition.None }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -136,7 +175,9 @@ fun AppNavigation() {
                         navController = navController,
                         isCustomer = isCustomerRole == true,
                         customerTableId = customerTableId,
-                        pendingItemCount = pendingItemCount
+                        pendingItemCount = pendingItemCount,
+                        staffCurrentRoute = staffTabRoute,
+                        onStaffTabSelected = { screen -> staffTabRoute = screen.route }
                     )
                 }
             }
@@ -145,50 +186,121 @@ fun AppNavigation() {
                 navController = navController,
                 startDestination = Screen.Login.route,
                 modifier = Modifier.padding(innerPadding),
-                enterTransition = slideEnter,
-                exitTransition = slideExit,
-                popEnterTransition = slidePopEnter,
-                popExitTransition = slidePopExit
+                enterTransition = { noEnter() },
+                exitTransition = { noExit() },
+                popEnterTransition = { noEnter() },
+                popExitTransition = { noExit() }
             ) {
                 composable(Screen.Login.route) {
                     LoginScreen(
                         viewModel = posViewModel,
-                        onCustomerLogin = { tableId ->
-                            isCustomerRole = true
-                            customerTableId = tableId
-                            hasBeenServing = false
-                            posViewModel.ensureOrderForTable(tableId)
-                            
-                            // Lấy FCM Token và lưu vào bàn trên Firestore
-                            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    val token = task.result
-                                    posViewModel.updateTableFcmToken(tableId, token)
-                                }
-                            }
-
-                            navController.navigate(Screen.CusHome.route) { popUpTo(Screen.Login.route) { inclusive = true } }
-                        },
+                        onCustomerLogin = { tableId, accessCode -> loginCustomerToTable(tableId, accessCode) },
                         onStaffLogin = {
                             isCustomerRole = false
-                            navController.navigate(Screen.Tables.route) { popUpTo(Screen.Login.route) { inclusive = true } }
+                            staffTabRoute = Screen.Tables.route
+                            navController.navigate(Screen.Tables.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                            }
                         }
                     )
                 }
-                
-                // Các màn hình khác giữ nguyên...
-                composable(Screen.Tables.route) { TableManagementScreen(viewModel = posViewModel, onTableClick = { id, _ -> navController.navigate("staff_pos/$id") }, onLogout = { isCustomerRole = null; navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } } }) }
+
+                composable(
+                    route = "open_table/{tableId}?code={accessCode}",
+                    arguments = listOf(
+                        navArgument("tableId") { type = NavType.StringType },
+                        navArgument("accessCode") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    ),
+                    deepLinks = listOf(navDeepLink { uriPattern = TABLE_DEEP_LINK })
+                ) { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("tableId").orEmpty()
+                    val accessCode = backStackEntry.arguments?.getString("accessCode")
+                    LaunchedEffect(id, accessCode, tables.isNotEmpty()) {
+                        if (id.isNotBlank() && tables.isNotEmpty()) loginCustomerToTable(id, accessCode)
+                    }
+                }
+
+                composable(Screen.Tables.route) {
+                    when (staffTabRoute) {
+                        Screen.KDS.route -> KitchenDisplayScreen(viewModel = posViewModel)
+                        Screen.StaffMenu.route -> StaffMenuScreen(viewModel = posViewModel)
+                        Screen.Revenue.route -> RevenueScreen(viewModel = posViewModel)
+                        else -> TableManagementScreen(
+                            viewModel = posViewModel,
+                            onLogout = {
+                                isCustomerRole = null
+                                staffTabRoute = Screen.Tables.route
+                                navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+                            }
+                        )
+                    }
+                }
                 composable(Screen.KDS.route) { KitchenDisplayScreen(viewModel = posViewModel) }
                 composable(Screen.StaffMenu.route) { StaffMenuScreen(viewModel = posViewModel) }
-                composable(Screen.Billing.route) { BillingScreen(viewModel = posViewModel) }
+                composable(Screen.Billing.route) { com.example.androidbtl.ui.screens.BillingScreen(viewModel = posViewModel) }
                 composable(Screen.Revenue.route) { RevenueScreen(viewModel = posViewModel) }
-                composable(route = "staff_pos/{tableId}", arguments = listOf(navArgument("tableId") { type = NavType.StringType })) { backStackEntry -> val id = backStackEntry.arguments?.getString("tableId") ?: ""; POSOrderScreen(tableId = id, viewModel = posViewModel, onNavigateToBooking = { navController.navigate("cus_booking/$id") }, onBack = { navController.popBackStack() }, onShowMessage = showMessage) }
-                composable(Screen.CusHome.route) { HomeScreen(tableId = customerTableId, viewModel = posViewModel, onNavigateToMenu = { navController.navigate(Screen.CusMenu.route) }, onNavigateToBill = { navController.navigate("cus_bill/$customerTableId") }, onNavigateToProfile = { navController.navigate(Screen.CusProfile.route) }, onShowMessage = showMessage) }
-                composable(Screen.CusMenu.route) { POSOrderScreen(tableId = customerTableId, viewModel = posViewModel, onNavigateToBooking = { navController.navigate("cus_booking/$customerTableId") }, onBack = { navController.popBackStack() }, onShowMessage = showMessage) }
+                composable(
+                    route = "staff_pos/{tableId}",
+                    arguments = listOf(navArgument("tableId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("tableId").orEmpty()
+                    POSOrderScreen(
+                        tableId = id,
+                        viewModel = posViewModel,
+                        onNavigateToBooking = { navController.navigate("cus_booking/$id") },
+                        onBack = { navController.popBackStack() },
+                        onShowMessage = showMessage
+                    )
+                }
+                composable(Screen.CusHome.route) {
+                    HomeScreen(
+                        tableId = customerTableId,
+                        viewModel = posViewModel,
+                        onNavigateToMenu = { navController.navigate(Screen.CusMenu.route) },
+                        onNavigateToBill = { navController.navigate("cus_bill/$customerTableId") },
+                        onNavigateToProfile = { navController.navigate(Screen.CusProfile.route) },
+                        onShowMessage = showMessage
+                    )
+                }
+                composable(Screen.CusMenu.route) {
+                    POSOrderScreen(
+                        tableId = customerTableId,
+                        viewModel = posViewModel,
+                        onNavigateToBooking = { navController.navigate("cus_booking/$customerTableId") },
+                        onBack = { navController.popBackStack() },
+                        onShowMessage = showMessage
+                    )
+                }
                 composable(Screen.CusOffers.route) { OffersScreen() }
-                composable(route = "cus_booking/{tableId}", arguments = listOf(navArgument("tableId") { type = NavType.StringType })) { backStackEntry -> val id = backStackEntry.arguments?.getString("tableId") ?: ""; BookingScreen(tableId = id, viewModel = posViewModel, onBack = { navController.popBackStack() }, onShowMessage = showMessage) }
-                composable(route = "cus_bill/{tableId}", arguments = listOf(navArgument("tableId") { type = NavType.StringType })) { backStackEntry -> val id = backStackEntry.arguments?.getString("tableId") ?: ""; BillScreen(tableId = id, viewModel = posViewModel) }
-                composable(Screen.CusProfile.route) { ProfileScreen(tableId = customerTableId, viewModel = posViewModel, onLogout = { isCustomerRole = null; customerTableId = ""; navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } } }) }
+                composable(
+                    route = "cus_booking/{tableId}",
+                    arguments = listOf(navArgument("tableId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("tableId").orEmpty()
+                    BookingScreen(tableId = id, viewModel = posViewModel, onBack = { navController.popBackStack() }, onShowMessage = showMessage)
+                }
+                composable(
+                    route = "cus_bill/{tableId}",
+                    arguments = listOf(navArgument("tableId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val id = backStackEntry.arguments?.getString("tableId").orEmpty()
+                    BillScreen(tableId = id, viewModel = posViewModel)
+                }
+                composable(Screen.CusProfile.route) {
+                    ProfileScreen(
+                        tableId = customerTableId,
+                        viewModel = posViewModel,
+                        onLogout = {
+                            isCustomerRole = null
+                            customerTableId = ""
+                            navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+                        }
+                    )
+                }
             }
         }
 

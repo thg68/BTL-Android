@@ -7,7 +7,8 @@ data class RestaurantTable(
     val name: String = "",
     val status: String = "Trống", // Trống, Đang phục vụ, Đã đặt
     val capacity: Int = 4,
-    val fcmToken: String = "" // Lưu token để gửi thông báo đẩy
+    val fcmToken: String = "", // Lưu token để gửi thông báo đẩy
+    val accessCode: String = "" // Mã QR mở bàn hiện tại
 )
 
 data class MenuItem(

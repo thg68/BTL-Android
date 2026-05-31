@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class PosViewModel(application: Application) : AndroidViewModel(application) {
     private val db = FirebaseFirestore.getInstance()
@@ -323,6 +324,41 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         db.collection("tables").document(tableId).update("status", status)
     }
 
+    fun reserveTable(tableId: String) {
+        if (tableId.isBlank()) return
+        db.collection("tables").document(tableId).update(
+            mapOf(
+                "status" to "Đã đặt",
+                "accessCode" to "",
+                "fcmToken" to ""
+            )
+        )
+    }
+
+    fun cancelTableReservation(tableId: String) {
+        if (tableId.isBlank()) return
+        db.collection("tables").document(tableId).update(
+            mapOf(
+                "status" to "Trống",
+                "accessCode" to "",
+                "fcmToken" to ""
+            )
+        )
+    }
+
+    fun openTableForCustomer(tableId: String): String {
+        if (tableId.isBlank()) return ""
+        val accessCode = UUID.randomUUID().toString().replace("-", "").take(12)
+        db.collection("tables").document(tableId).update(
+            mapOf(
+                "status" to "Đang phục vụ",
+                "accessCode" to accessCode
+            )
+        )
+        ensureOrderForTable(tableId)
+        return accessCode
+    }
+
     fun updateTableFcmToken(tableId: String, token: String) {
         if (tableId.isBlank()) return
         db.collection("tables").document(tableId).update("fcmToken", token)
@@ -452,7 +488,15 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     "timestamp" to System.currentTimeMillis()
                 ))
                 .addOnSuccessListener { 
-                    if (tableId.isNotBlank()) updateTableStatus(tableId, "Trống")
+                    if (tableId.isNotBlank()) {
+                        db.collection("tables").document(tableId).update(
+                            mapOf(
+                                "status" to "Trống",
+                                "accessCode" to "",
+                                "fcmToken" to ""
+                            )
+                        )
+                    }
                     Log.d("PosViewModel", "Order $orderId closed successfully")
                 }
                 .addOnFailureListener { e ->

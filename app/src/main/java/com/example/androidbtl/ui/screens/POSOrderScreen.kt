@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +36,7 @@ import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.components.MenuItemSkeleton
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -47,24 +49,31 @@ fun POSOrderScreen(
     onBack: () -> Unit,
     onShowMessage: (String) -> Unit = {}
 ) {
-    val menuItems by viewModel.menuItems.collectAsState()
-    val isLoadingMenu by viewModel.isLoadingMenu.collectAsState()
-    val orders by viewModel.activeOrders.collectAsState()
+    val menuItems by viewModel.menuItems.collectAsStateWithLifecycle()
+    val isLoadingMenu by viewModel.isLoadingMenu.collectAsStateWithLifecycle()
+    val orders by viewModel.activeOrders.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Tất cả") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var selectedCategory by rememberSaveable { mutableStateOf("Tất cả") }
 
-    val activeOrder = orders.find { it.tableId == tableId }
-    val categories = listOf("Tất cả") + menuItems.map { it.category }.distinct()
+    val activeOrder = remember(orders, tableId) { orders.find { it.tableId == tableId } }
+    val categories = remember(menuItems) { listOf("Tất cả") + menuItems.map { it.category }.distinct() }
 
-    val filteredMenuItems = menuItems.filter {
-        (selectedCategory == "Tất cả" || it.category == selectedCategory) &&
-        (searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true))
+    val filteredMenuItems = remember(menuItems, selectedCategory, searchQuery) {
+        menuItems.filter {
+            (selectedCategory == "Tất cả" || it.category == selectedCategory) &&
+                (
+                    searchQuery.isBlank() ||
+                        it.name.contains(searchQuery, ignoreCase = true) ||
+                        it.category.contains(searchQuery, ignoreCase = true) ||
+                        it.description.contains(searchQuery, ignoreCase = true)
+                    )
+        }
     }
 
-    // Advanced UX: Cart Shake Animation logic
     var cartAnimateTrigger by remember { mutableStateOf(0) }
     val cartScale by animateFloatAsState(
         targetValue = if (cartAnimateTrigger > 0) 1.2f else 1f,
@@ -84,19 +93,55 @@ fun POSOrderScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Bàn $tableId", fontWeight = FontWeight.Black, fontSize = 18.sp)
-                        Text("Saka Hotpot Premium", fontSize = 11.sp, color = BrandYellow, fontWeight = FontWeight.Bold)
+                    if (isSearchActive) {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            placeholder = {
+                                Text(
+                                    "Tìm món ăn...",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                cursorColor = BrandYellow
+                            )
+                        )
+                    } else {
+                        Column {
+                            Text("Bàn $tableId", fontWeight = FontWeight.Black, fontSize = 18.sp)
+                            Text("Saka Hotpot", fontSize = 11.sp, color = BrandYellow, fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        if (isSearchActive) {
+                            isSearchActive = false
+                            searchQuery = ""
+                        } else {
+                            onBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Search toggle */ }) {
-                        Icon(Icons.Default.Search, contentDescription = null)
+                    IconButton(onClick = {
+                        if (isSearchActive) searchQuery = ""
+                        else isSearchActive = true
+                    }) {
+                        Icon(
+                            if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
+                            contentDescription = null
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -153,7 +198,7 @@ fun POSOrderScreen(
                                 if (activeOrder != null) {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     viewModel.sendOrderToKitchen(activeOrder.id)
-                                    onShowMessage("🔥 Đơn hàng đã được gửi xuống bếp!")
+                                    onShowMessage("Đơn hàng đã được gửi xuống bếp!")
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = BrandYellow),
@@ -174,7 +219,7 @@ fun POSOrderScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(categories) { category ->
+                items(categories, key = { it }) { category ->
                     val isSelected = selectedCategory == category
                     FilterChip(
                         selected = isSelected,
@@ -214,20 +259,33 @@ fun POSOrderScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    item {
-                        // Advanced UX: Promo Card
-                        PromoOrderCard()
-                    }
-                    
-                    items(filteredMenuItems) { item ->
-                        AdvancedMenuItemCard(item) {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            cartAnimateTrigger++
-                            if (activeOrder == null) {
-                                viewModel.createOrderForTable(tableId)
-                                onShowMessage("Đã mở bàn! Hãy thêm lại món nhé.")
-                            } else {
-                                viewModel.addMenuItemToOrder(activeOrder.id, item)
+                    if (filteredMenuItems.isEmpty()) {
+                        item {
+                            EmptyState(
+                                icon = Icons.Default.SearchOff,
+                                title = "Không tìm thấy món",
+                                description = "Thử nhập tên món, nhóm món hoặc mô tả khác.",
+                                modifier = Modifier
+                                    .fillParentMaxWidth()
+                                    .height(360.dp)
+                            )
+                        }
+                    } else {
+                        item {
+                            // Advanced UX: Promo Card
+                            PromoOrderCard()
+                        }
+
+                        items(filteredMenuItems, key = { it.id }) { item ->
+                            AdvancedMenuItemCard(item) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                cartAnimateTrigger++
+                                if (activeOrder == null) {
+                                    viewModel.createOrderForTable(tableId)
+                                    onShowMessage("Đã mở bàn! Hãy thêm lại món nhé.")
+                                } else {
+                                    viewModel.addMenuItemToOrder(activeOrder.id, item)
+                                }
                             }
                         }
                     }

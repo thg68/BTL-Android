@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,12 +28,14 @@ data class Offer(
 
 @Composable
 fun OffersScreen() {
-    val offers = listOf(
-        Offer("Giảm 20% Bò Wagyu", "Áp dụng cho khách hàng gọi món tại bàn.", "WAGYU20", "Hạn dùng: 31/12/2025"),
-        Offer("Đi 4 Tính Tiền 3", "Dành cho nhóm khách đi lẩu buổi trưa.", "GROUP4", "Hạn dùng: 30/06/2025"),
-        Offer("Tặng Pudding Trứng", "Mỗi hóa đơn trên 500k tặng ngay 1 phần tráng miệng.", "FREEPUD", "Hạn dùng: 31/12/2025"),
-        Offer("Giảm 10% Tổng Bill", "Ưu đãi dành cho thành viên mới đăng ký.", "SakaNEW", "Hạn dùng: Không giới hạn")
-    )
+    val offers = remember {
+        listOf(
+            Offer("Giảm 20% Bò Wagyu", "Áp dụng cho khách hàng gọi món tại bàn.", "WAGYU20", "Hạn dùng: 31/12/2026"),
+            Offer("Đi 4 Tính Tiền 3", "Dành cho nhóm khách đi lẩu buổi trưa.", "GROUP4", "Hạn dùng: 30/06/2026"),
+            Offer("Tặng Pudding Trứng", "Mỗi hóa đơn trên 500k tặng ngay 1 phần tráng miệng.", "FREEPUD", "Hạn dùng: 31/12/2026"),
+            Offer("Giảm 10% Tổng Bill", "Ưu đãi dành cho thành viên mới đăng ký.", "SakaNEW", "Hạn dùng: Không giới hạn")
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -59,7 +62,7 @@ fun OffersScreen() {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(offers) { offer ->
+            items(offers, key = { it.code }) { offer ->
                 OfferCard(offer)
             }
             item { Spacer(modifier = Modifier.height(100.dp)) }

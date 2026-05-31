@@ -9,8 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,9 +25,9 @@ import com.example.androidbtl.viewmodel.PosViewModel
 
 @Composable
 fun BillingScreen(viewModel: PosViewModel) {
-    val orders by viewModel.activeOrders.collectAsState()
-    val notifications by viewModel.notifications.collectAsState()
-    val unreadCount by viewModel.unreadCount.collectAsState()
+    val orders by viewModel.activeOrders.collectAsStateWithLifecycle()
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+    val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier

@@ -27,6 +27,7 @@ import com.example.androidbtl.ui.theme.ActionGreen
 import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private val menuCategories = listOf(
     "Thịt bò", "Thịt lợn", "Hải sản", "Rau nấm", "Ăn kèm", "Tráng miệng", "Nước lẩu"
@@ -34,10 +35,10 @@ private val menuCategories = listOf(
 
 @Composable
 fun StaffMenuScreen(viewModel: PosViewModel) {
-    val menuItems by viewModel.menuItems.collectAsState()
-    val isLoading by viewModel.isLoadingMenu.collectAsState()
-    val notifications by viewModel.notifications.collectAsState()
-    val unreadCount by viewModel.unreadCount.collectAsState()
+    val menuItems by viewModel.menuItems.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingMenu.collectAsStateWithLifecycle()
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+    val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<MenuItem?>(null) }

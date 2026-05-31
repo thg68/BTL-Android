@@ -3,9 +3,13 @@ package com.example.androidbtl.utils
 import android.content.Context
 import android.util.Log
 import com.google.auth.oauth2.GoogleCredentials
-import okhttp3.*
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -27,7 +31,7 @@ object FcmSender {
                     Log.e("FCM_V1", "Không lấy được Access Token")
                     return@execute
                 }
-                
+
                 val notification = JSONObject().apply {
                     put("title", title)
                     put("body", message)
@@ -63,7 +67,6 @@ object FcmSender {
                         }
                     }
                 })
-
             } catch (e: Exception) {
                 Log.e("FCM_V1", "Lỗi gửi FCM (Kiểm tra service_account.json): ${e.localizedMessage}")
                 e.printStackTrace()

@@ -16,12 +16,13 @@ import androidx.compose.ui.unit.sp
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.ui.theme.TextPrimary
 import com.example.androidbtl.viewmodel.PosViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun RevenueScreen(viewModel: PosViewModel) {
-    val closedOrders by viewModel.closedOrders.collectAsState()
+    val closedOrders by viewModel.closedOrders.collectAsStateWithLifecycle()
     
     // Lọc đơn hàng chỉ trong ngày hôm nay
     val todayOrders = remember(closedOrders) {
@@ -103,7 +104,7 @@ fun RevenueScreen(viewModel: PosViewModel) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(todayOrders) { order ->
+                items(todayOrders, key = { it.id }) { order ->
                     TransactionRow(order = order)
                 }
                 item { Spacer(modifier = Modifier.height(100.dp)) }

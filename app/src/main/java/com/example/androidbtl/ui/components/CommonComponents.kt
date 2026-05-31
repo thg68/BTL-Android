@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.size.Precision
 import androidx.compose.ui.platform.LocalContext
 import com.example.androidbtl.R
 import com.example.androidbtl.data.models.NotificationItem
@@ -71,14 +72,21 @@ fun AsyncFoodImage(
     imageUrl: String,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Crop
+    contentScale: ContentScale = ContentScale.Crop,
+    imageSizePx: Int = 360
 ) {
     val context = LocalContext.current
     val placeholder = R.drawable.hotpot_banner
+    val cacheKey = imageUrl.ifBlank { "hotpot_banner_placeholder" }
     AsyncImage(
         model = ImageRequest.Builder(context)
             .data(imageUrl.ifBlank { placeholder })
-            .crossfade(true)
+            .crossfade(false)
+            .size(imageSizePx, imageSizePx)
+            .memoryCacheKey(cacheKey)
+            .diskCacheKey(cacheKey)
+            .precision(Precision.INEXACT)
+            .allowHardware(true)
             .build(),
         contentDescription = contentDescription,
         modifier = modifier,

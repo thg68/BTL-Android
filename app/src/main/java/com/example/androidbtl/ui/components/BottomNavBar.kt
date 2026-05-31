@@ -17,9 +17,9 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -52,16 +52,22 @@ fun AppBottomNavBar(
     navController: NavController,
     isCustomer: Boolean,
     customerTableId: String = "",
-    pendingItemCount: Int = 0
+    pendingItemCount: Int = 0,
+    staffCurrentRoute: String? = null,
+    onStaffTabSelected: ((Screen) -> Unit)? = null
 ) {
-    val items = if (isCustomer) {
-        listOf(Screen.CusHome, Screen.CusMenu, Screen.CusOffers, Screen.CusBill, Screen.CusProfile)
-    } else {
-        listOf(Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Billing, Screen.Revenue)
+    val items = remember(isCustomer) {
+        if (isCustomer) {
+            listOf(Screen.CusHome, Screen.CusMenu, Screen.CusOffers, Screen.CusBill, Screen.CusProfile)
+        } else {
+            listOf(Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Revenue)
+        }
     }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val selectedRoute = if (!isCustomer && staffCurrentRoute != null) staffCurrentRoute else currentRoute
+    val currentBase = remember(selectedRoute) { selectedRoute?.substringBefore("/") }
 
     // Hide bottom bar on login and deep POS screens
     if (currentRoute == Screen.Login.route) return
@@ -72,13 +78,11 @@ fun AppBottomNavBar(
         tonalElevation = 0.dp,
         modifier = Modifier
             .padding(horizontal = 12.dp, vertical = 12.dp)
-            .shadow(20.dp, RoundedCornerShape(32.dp))
             .clip(RoundedCornerShape(32.dp))
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
     ) {
         items.forEach { screen ->
             val routeBase = screen.route.substringBefore("/")
-            val currentBase = currentRoute?.substringBefore("/")
 
             NavigationBarItem(
                 icon = {
@@ -95,13 +99,21 @@ fun AppBottomNavBar(
                 label = { Text(screen.title) },
                 selected = currentBase == routeBase,
                 onClick = {
+                    if (currentBase == routeBase) return@NavigationBarItem
+
+                    if (!isCustomer && onStaffTabSelected != null) {
+                        onStaffTabSelected(screen)
+                        return@NavigationBarItem
+                    }
+
                     val targetRoute = if (screen == Screen.CusBill && customerTableId.isNotBlank()) {
                         "cus_bill/$customerTableId"
                     } else {
                         screen.route
                     }
+                    val rootRoute = if (isCustomer) Screen.CusHome.route else Screen.Tables.route
                     navController.navigate(targetRoute) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        popUpTo(rootRoute) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }

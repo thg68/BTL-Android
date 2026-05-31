@@ -28,6 +28,7 @@ import com.example.androidbtl.ui.components.AsyncFoodImage
 import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun BookingScreen(
@@ -36,8 +37,8 @@ fun BookingScreen(
     onBack: () -> Unit,
     onShowMessage: (String) -> Unit = {}
 ) {
-    val orders by viewModel.activeOrders.collectAsState()
-    val menuItems by viewModel.menuItems.collectAsState()
+    val orders by viewModel.activeOrders.collectAsStateWithLifecycle()
+    val menuItems by viewModel.menuItems.collectAsStateWithLifecycle()
 
     val activeOrder = orders.find { it.tableId == tableId && it.status == "Open" }
     val cartItems = activeOrder?.items?.filter { it.status == "Cart" } ?: emptyList()
@@ -77,7 +78,7 @@ fun BookingScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(cartItems) { item ->
+                items(cartItems, key = { "${it.menuItemId}_${it.status}" }) { item ->
                     val imageUrl = menuItems.find { it.id == item.menuItemId }?.imageUrl.orEmpty()
                     CartItemCard(
                         item = item,

@@ -21,25 +21,26 @@ import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.components.QrPaymentDialog
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun BillScreen(tableId: String, viewModel: PosViewModel) {
-    val orders by viewModel.activeOrders.collectAsState()
-    val tableOrders = orders.filter { it.tableId == tableId }
+    val orders by viewModel.activeOrders.collectAsStateWithLifecycle()
+    val tableOrders = remember(orders, tableId) { orders.filter { it.tableId == tableId } }
 
-    val allBillItems = tableOrders
-        .flatMap { it.items }
-        .filter { it.status == "Pending" || it.status == "Done" }
-
-    val mergedItems = allBillItems
-        .groupBy { it.menuItemId }
-        .map { (_, items) ->
-            val first = items.first()
-            first.copy(quantity = items.sumOf { it.quantity })
+    val mergedItems = remember(tableOrders) {
+        tableOrders
+            .flatMap { it.items }
+            .filter { it.status == "Pending" || it.status == "Done" }
+            .groupBy { it.menuItemId }
+            .map { (_, items) ->
+                val first = items.first()
+                first.copy(quantity = items.sumOf { it.quantity })
+            }
+            .sortedBy { it.name }
         }
-        .sortedBy { it.name }
+    val totalAmount = remember(mergedItems) { mergedItems.sumOf { it.price * it.quantity } }
 
-    val totalAmount = mergedItems.sumOf { it.price * it.quantity }
     var showQrDialog by remember { mutableStateOf(false) }
 
     Scaffold(

@@ -115,7 +115,7 @@ fun MenuScreen() {
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(categories) { category ->
+            items(categories, key = { it }) { category ->
                 val isSelected = category == selectedCategory
                 Box(
                     modifier = Modifier
@@ -139,7 +139,7 @@ fun MenuScreen() {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(currentItems) { item ->
+            items(currentItems, key = { "${it.category}_${it.name}" }) { item ->
                 MenuItemCard(
                     title = item.name,
                     description = item.description,

@@ -31,13 +31,14 @@ import com.example.androidbtl.ui.theme.ActionGreen
 import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun KitchenDisplayScreen(viewModel: PosViewModel) {
-    val orders by viewModel.activeOrders.collectAsState()
-    val menuItems by viewModel.menuItems.collectAsState()
-    val notifications by viewModel.notifications.collectAsState()
-    val unreadCount by viewModel.unreadCount.collectAsState()
+    val orders by viewModel.activeOrders.collectAsStateWithLifecycle()
+    val menuItems by viewModel.menuItems.collectAsStateWithLifecycle()
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+    val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     
     // 0: Cần làm, 1: Đang nấu, 2: Hoàn tất

@@ -33,6 +33,7 @@ import com.example.androidbtl.ui.components.AsyncFoodImage
 import com.example.androidbtl.ui.components.DishCardSkeleton
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import java.util.*
 
@@ -45,9 +46,9 @@ fun HomeScreen(
     onNavigateToProfile: () -> Unit = {},
     onShowMessage: (String) -> Unit = {}
 ) {
-    val topSellingItems by viewModel.topSellingItems.collectAsState()
-    val activeOrders by viewModel.activeOrders.collectAsState()
-    val menuItems by viewModel.menuItems.collectAsState()
+    val topSellingItems by viewModel.topSellingItems.collectAsStateWithLifecycle()
+    val activeOrders by viewModel.activeOrders.collectAsStateWithLifecycle()
+    val menuItems by viewModel.menuItems.collectAsStateWithLifecycle()
     
     var selectedDish by remember { mutableStateOf<MenuItem?>(null) }
 
@@ -57,9 +58,9 @@ fun HomeScreen(
     val doneCount = currentOrder?.items?.count { it.status == "Done" } ?: 0
 
     val greeting = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-        in 0..11 -> "Chào buổi sáng ☀️"
-        in 12..17 -> "Chào buổi chiều 🌤️"
-        else -> "Chào buổi tối 🌙"
+        in 0..11 -> "Chào buổi sáng"
+        in 12..17 -> "Chào buổi chiều"
+        else -> "Chào buổi tối"
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -73,31 +74,47 @@ fun HomeScreen(
                     .background(MaterialTheme.colorScheme.background)
                     .verticalScroll(rememberScrollState())
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(brush = Brush.verticalGradient(colors = listOf(Color(0xFF212121), Color.Transparent)))
-                        .padding(24.dp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 18.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Column {
-                            Text(greeting, fontSize = 14.sp, color = BrandYellow, fontWeight = FontWeight.Bold)
-                            Text("Bàn $tableId", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color.White)
-                            Surface(color = Color(0xFF388E3C).copy(alpha = 0.2f), shape = RoundedCornerShape(100.dp), border = BorderStroke(1.dp, Color(0xFF388E3C).copy(alpha = 0.5f)), modifier = Modifier.padding(top = 8.dp)) {
-                                Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF81C784), modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("KHÁCH HÀNG THÂN THIẾT", color = Color(0xFF81C784), fontSize = 10.sp, fontWeight = FontWeight.Black)
-                                }
-                            }
+                            Text(greeting, fontSize = 13.sp, color = BrandYellow, fontWeight = FontWeight.ExtraBold)
+                            Text(
+                                "Bàn $tableId",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
                         }
-                        Surface(onClick = onNavigateToProfile, color = Color.White.copy(alpha = 0.1f), shape = CircleShape, modifier = Modifier.size(56.dp), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))) {
-                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp)) }
+                        Surface(
+                            onClick = onNavigateToProfile,
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = CircleShape,
+                            modifier = Modifier.size(52.dp),
+                            shadowElevation = 3.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
                         }
                     }
                 }
 
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 18.dp)) {
                     AnimatedVisibility(visible = (pendingCount + cookingCount + doneCount) > 0, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                         OrderProgressGlassCard(pendingCount, cookingCount, doneCount, onNavigateToBill)
                     }
@@ -226,7 +243,7 @@ fun FeaturedDishesSection(title: String, featured: List<MenuItem>, isLoading: Bo
         if (isLoading) { LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) { items(5) { DishCardSkeleton() } } }
         else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                items(featured) { item ->
+                items(featured, key = { it.id }) { item ->
                     Card(modifier = Modifier.width(200.dp).clip(RoundedCornerShape(28.dp)).clickable { onDishClick(item) }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                         Column {
                             Box {

@@ -1,13 +1,28 @@
 package com.example.androidbtl.ui.screens
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -15,42 +30,75 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.TableRestaurant
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.androidbtl.data.models.Order
 import com.example.androidbtl.data.models.RestaurantTable
+import com.example.androidbtl.ui.components.QrPaymentDialog
 import com.example.androidbtl.ui.components.StaffNotificationBell
-import com.example.androidbtl.ui.theme.ActionGreen
 import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
+import qrcode.QRCode
+
+private const val TABLE_LINK_SCHEME = "androidbtl://table"
 
 @Composable
 fun TableManagementScreen(
     viewModel: PosViewModel,
-    onTableClick: (String, String) -> Unit,
     onLogout: () -> Unit = {}
 ) {
-    val tables by viewModel.tables.collectAsState()
-    val isLoading by viewModel.isLoadingTables.collectAsState()
-    val notifications by viewModel.notifications.collectAsState()
-    val unreadCount by viewModel.unreadCount.collectAsState()
+    val tables by viewModel.tables.collectAsStateWithLifecycle()
+    val activeOrders by viewModel.activeOrders.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingTables.collectAsStateWithLifecycle()
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+    val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var editingTable by remember { mutableStateOf<RestaurantTable?>(null) }
     var optionsTable by remember { mutableStateOf<RestaurantTable?>(null) }
+    var selectedTable by remember { mutableStateOf<RestaurantTable?>(null) }
     var deletingTable by remember { mutableStateOf<RestaurantTable?>(null) }
+    var accessQrTable by remember { mutableStateOf<RestaurantTable?>(null) }
+    var paymentRequest by remember { mutableStateOf<Pair<String, Double>?>(null) }
 
-    // Logout confirm
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -67,14 +115,13 @@ fun TableManagementScreen(
         )
     }
 
-    // Add / Edit dialog
     if (showAddDialog || editingTable != null) {
         TableDialog(
             table = editingTable,
             onDismiss = { showAddDialog = false; editingTable = null },
             onConfirm = { name, capacity ->
-                val t = editingTable
-                if (t != null) viewModel.updateTable(t.id, name, capacity)
+                val table = editingTable
+                if (table != null) viewModel.updateTable(table.id, name, capacity)
                 else viewModel.addTable(name, capacity)
                 showAddDialog = false
                 editingTable = null
@@ -82,13 +129,48 @@ fun TableManagementScreen(
         )
     }
 
-    // Options dialog (long press)
+    selectedTable?.let { table ->
+        val activeOrder = activeOrders.find { it.tableId == table.id }
+        TableSettingsDialog(
+            table = table,
+            activeOrder = activeOrder,
+            onDismiss = { selectedTable = null },
+            onOpenTableQr = {
+                val accessCode = viewModel.openTableForCustomer(table.id)
+                selectedTable = null
+                accessQrTable = table.copy(status = "Đang phục vụ", accessCode = accessCode)
+            },
+            onReserveTable = {
+                if (table.status == "Đã đặt") viewModel.cancelTableReservation(table.id)
+                else viewModel.reserveTable(table.id)
+                selectedTable = null
+            },
+            onPaymentQr = { amount ->
+                selectedTable = null
+                paymentRequest = table.id to amount
+            }
+        )
+    }
+
+    accessQrTable?.let { table ->
+        TableAccessQrDialog(
+            table = table,
+            onDismiss = { accessQrTable = null }
+        )
+    }
+
+    paymentRequest?.let { (tableId, amount) ->
+        QrPaymentDialog(
+            amount = amount,
+            tableId = tableId,
+            onDismiss = { paymentRequest = null }
+        )
+    }
+
     optionsTable?.let { table ->
         AlertDialog(
             onDismissRequest = { optionsTable = null },
-            title = {
-                Text(table.name, fontWeight = FontWeight.Bold)
-            },
+            title = { Text(table.name, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -115,9 +197,7 @@ fun TableManagementScreen(
                     ) {
                         Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            if (table.status == "Trống") "Xóa bàn" else "Không thể xóa (đang sử dụng)"
-                        )
+                        Text(if (table.status == "Trống") "Xóa bàn" else "Không thể xóa")
                     }
                 }
             },
@@ -128,7 +208,6 @@ fun TableManagementScreen(
         )
     }
 
-    // Delete confirm
     deletingTable?.let { table ->
         AlertDialog(
             onDismissRequest = { deletingTable = null },
@@ -154,22 +233,30 @@ fun TableManagementScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 2.dp
+                shadowElevation = 1.dp
             ) {
                 Column {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                            .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            "Sơ đồ Bàn",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Column {
+                            Text(
+                                "Sơ đồ bàn",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "${tables.size} bàn đang quản lý",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             StaffNotificationBell(
                                 notifications = notifications,
@@ -186,24 +273,35 @@ fun TableManagementScreen(
                             }
                         }
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                LegendItem(color = MaterialTheme.colorScheme.surfaceVariant, text = "Trống")
-                LegendItem(color = BrandYellow, text = "Đang phục vụ")
-                LegendItem(color = ActionRed, text = "Đã đặt")
+                TableStatusSummaryCard(
+                    label = "Trống",
+                    count = tables.count { it.status == "Trống" },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                TableStatusSummaryCard(
+                    label = "Phục vụ",
+                    count = tables.count { it.status == "Đang phục vụ" },
+                    color = BrandYellow,
+                    modifier = Modifier.weight(1f)
+                )
+                TableStatusSummaryCard(
+                    label = "Đã đặt",
+                    count = tables.count { it.status == "Đã đặt" },
+                    color = ActionRed,
+                    modifier = Modifier.weight(1f)
+                )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -211,19 +309,18 @@ fun TableManagementScreen(
                 }
             } else {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    columns = GridCells.Adaptive(minSize = 96.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 120.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(tables, key = { it.id }) { table ->
                         TableCard(
                             table = table,
-                            onClick = { onTableClick(table.id, table.status) },
+                            onClick = { selectedTable = table },
                             onLongClick = { optionsTable = table }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(100.dp)) }
                 }
             }
         }
@@ -232,11 +329,143 @@ fun TableManagementScreen(
             onClick = { showAddDialog = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(24.dp),
+                .padding(end = 20.dp, bottom = 88.dp),
             containerColor = BrandYellow,
             contentColor = Color.Black
         ) {
             Icon(Icons.Filled.Add, contentDescription = "Thêm bàn")
+        }
+    }
+}
+
+@Composable
+private fun TableSettingsDialog(
+    table: RestaurantTable,
+    activeOrder: Order?,
+    onDismiss: () -> Unit,
+    onOpenTableQr: () -> Unit,
+    onReserveTable: () -> Unit,
+    onPaymentQr: (Double) -> Unit
+) {
+    val payableAmount = activeOrder?.items.orEmpty().sumOf { it.price * it.quantity }
+    val canReserve = table.status != "Đang phục vụ"
+    val canOpenTable = table.status != "Đang phục vụ"
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(table.name, fontWeight = FontWeight.ExtraBold)
+                Text(table.status, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = onReserveTable,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = canReserve
+                ) {
+                    Icon(Icons.Filled.TableRestaurant, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        when {
+                            table.status == "Đã đặt" -> "Hủy đặt bàn"
+                            canReserve -> "Đặt bàn"
+                            else -> "Bàn đang phục vụ"
+                        }
+                    )
+                }
+                if (canOpenTable) {
+                    Button(
+                        onClick = onOpenTableQr,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandYellow)
+                    ) {
+                        Icon(Icons.Filled.QrCode2, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Black)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Mở bàn + QR đăng nhập", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+                OutlinedButton(
+                    onClick = { onPaymentQr(payableAmount) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = payableAmount > 0.0
+                ) {
+                    Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (payableAmount > 0.0) "QR thanh toán (${formatMoney(payableAmount)})"
+                        else "Chưa có món để thanh toán"
+                    )
+                }
+                Text(
+                    "Nhấn giữ thẻ bàn để sửa hoặc xóa bàn.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Đóng") }
+        }
+    )
+}
+
+@Composable
+private fun TableAccessQrDialog(
+    table: RestaurantTable,
+    onDismiss: () -> Unit
+) {
+    val payload = "$TABLE_LINK_SCHEME/${table.id}?code=${table.accessCode}"
+    val qrBitmap: ImageBitmap = remember(payload) {
+        val bytes = QRCode.ofSquares()
+            .withSize(12)
+            .build(payload)
+            .renderToBytes()
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size).asImageBitmap()
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(Icons.Filled.QrCode2, contentDescription = null, tint = BrandYellow, modifier = Modifier.size(30.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("QR mở ${table.name}", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    "Khách quét mã này để tự động đăng nhập vào bàn.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .padding(12.dp)
+                ) {
+                    Image(bitmap = qrBitmap, contentDescription = "QR mở bàn", modifier = Modifier.size(240.dp))
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(payload, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = onDismiss) {
+                    Text("Đóng", color = BrandYellow, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }
@@ -306,21 +535,45 @@ fun TableDialog(
 }
 
 @Composable
-fun LegendItem(color: Color, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(14.dp)
-                .background(color, RoundedCornerShape(4.dp))
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text,
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.Medium
-        )
+private fun TableStatusSummaryCard(
+    label: String,
+    count: Int,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.height(64.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(18.dp),
+        shadowElevation = 1.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(color, CircleShape)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    label,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+            }
+            Text(
+                count.toString(),
+                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
     }
 }
 
@@ -331,61 +584,87 @@ fun TableCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
-    val backgroundColor = when (table.status) {
+    val accentColor = when (table.status) {
         "Đang phục vụ" -> BrandYellow
         "Đã đặt" -> ActionRed
-        else -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val textColor = when (table.status) {
-        "Đã đặt" -> Color.White
+    val statusContainer = when (table.status) {
+        "Đang phục vụ" -> BrandYellow
+        "Đã đặt" -> ActionRed
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val statusContent = when (table.status) {
         "Đang phục vụ" -> Color.Black
-        else -> MaterialTheme.colorScheme.onSurface
+        "Đã đặt" -> Color.White
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val borderColor =
-        if (table.status == "Trống") MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) else Color.Transparent
 
     Card(
         modifier = Modifier
-            .aspectRatio(1f)
-            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-            .clip(RoundedCornerShape(16.dp))
+            .height(118.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.13f), RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(18.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Surface(
+                color = accentColor.copy(alpha = if (table.status == "Trống") 0.10f else 0.18f),
+                shape = CircleShape,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Filled.TableRestaurant,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     table.name,
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 16.sp,
-                    color = textColor,
-                    maxLines = 2,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(4.dp))
                 Surface(
-                    color = textColor.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(4.dp)
+                    color = statusContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(top = 5.dp)
                 ) {
                     Text(
                         table.status,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        color = textColor,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                if (table.capacity > 0) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "${table.capacity} người",
-                        fontSize = 10.sp,
-                        color = textColor.copy(alpha = 0.7f)
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                        color = statusContent,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
                     )
                 }
             }
+
+            Text(
+                "${table.capacity} người",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
+
+private fun formatMoney(amount: Double): String = "%,.0fđ".format(amount)
