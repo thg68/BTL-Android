@@ -115,7 +115,7 @@ private fun rememberLoginColors(): LoginColors {
 @Composable
 fun LoginScreen(
     viewModel: PosViewModel,
-    onCustomerLogin: (String, String?) -> Unit,
+    onCustomerLogin: (String, String?, Boolean) -> Unit,
     onStaffLogin: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
@@ -295,26 +295,27 @@ private fun LoginTabPill(
 }
 
 @Composable
-fun CustomerLoginTab(onLogin: (String, String?) -> Unit, tables: List<RestaurantTable>) {
+fun CustomerLoginTab(onLogin: (String, String?, Boolean) -> Unit, tables: List<RestaurantTable>) {
     val context = LocalContext.current
     val loginColors = rememberLoginColors()
     var tableId by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showScanner by remember { mutableStateOf(false) }
 
-    fun submitTable(id: String, accessCode: String? = null) {
+    fun submitTable(id: String, accessCode: String? = null, fromQr: Boolean = false) {
         val normalizedId = id.trim()
         val normalizedAccessCode = accessCode.orEmpty()
+        val hasQrAccess = fromQr && normalizedAccessCode.isNotBlank()
         val table = tables.find { it.id == normalizedId }
         when {
             normalizedId.isBlank() -> errorMessage = "Vui lòng nhập số bàn"
             tables.isEmpty() -> errorMessage = "Đang tải danh sách bàn, vui lòng thử lại"
             table == null -> errorMessage = "Không tìm thấy bàn $normalizedId"
             table.status == "Đã đặt" -> errorMessage = "Bàn $normalizedId đã được đặt trước"
-            table.status == "Đang phục vụ" && (normalizedAccessCode.isBlank() || normalizedAccessCode != table.accessCode) -> {
+            table.status == "Đang phục vụ" && !hasQrAccess -> {
                 errorMessage = "Bàn $normalizedId đang có khách sử dụng"
             }
-            else -> onLogin(normalizedId, accessCode)
+            else -> onLogin(normalizedId, accessCode, hasQrAccess)
         }
     }
 
@@ -442,7 +443,7 @@ fun CustomerLoginTab(onLogin: (String, String?) -> Unit, tables: List<Restaurant
                     errorMessage = "QR không hợp lệ"
                 } else {
                     tableId = scannedPayload.tableId
-                    submitTable(scannedPayload.tableId, scannedPayload.accessCode)
+                    submitTable(scannedPayload.tableId, scannedPayload.accessCode, fromQr = true)
                 }
             }
         )

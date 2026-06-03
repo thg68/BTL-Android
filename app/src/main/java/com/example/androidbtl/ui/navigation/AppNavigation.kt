@@ -77,9 +77,10 @@ fun AppNavigation() {
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
-    val loginCustomerToTable: (String, String?) -> Unit = login@{ tableId, accessCode ->
+    val loginCustomerToTable: (String, String?, Boolean) -> Unit = login@{ tableId, accessCode, fromQr ->
         val normalizedTableId = tableId.trim()
         val normalizedAccessCode = accessCode.orEmpty()
+        val hasQrAccess = fromQr && normalizedAccessCode.isNotBlank()
         val table = posViewModel.tables.value.find { it.id == normalizedTableId }
         when {
             normalizedTableId.isBlank() -> {
@@ -94,7 +95,7 @@ fun AppNavigation() {
                 showMessage("Bàn $normalizedTableId đã được đặt trước.")
                 return@login
             }
-            table.status == "Đang phục vụ" && (normalizedAccessCode.isBlank() || normalizedAccessCode != table.accessCode) -> {
+            table.status == "Đang phục vụ" && !hasQrAccess -> {
                 showMessage("Bàn $normalizedTableId đang có khách sử dụng.")
                 return@login
             }
@@ -215,7 +216,7 @@ fun AppNavigation() {
                 composable(Screen.Login.route) {
                     LoginScreen(
                         viewModel = posViewModel,
-                        onCustomerLogin = { tableId, accessCode -> loginCustomerToTable(tableId, accessCode) },
+                        onCustomerLogin = { tableId, accessCode, fromQr -> loginCustomerToTable(tableId, accessCode, fromQr) },
                         onStaffLogin = {
                             isCustomerRole = false
                             customerTableId = ""
@@ -249,7 +250,9 @@ fun AppNavigation() {
                     val id = backStackEntry.arguments?.getString("tableId").orEmpty()
                     val accessCode = backStackEntry.arguments?.getString("accessCode")
                     LaunchedEffect(id, accessCode, tables.isNotEmpty()) {
-                        if (id.isNotBlank() && tables.isNotEmpty()) loginCustomerToTable(id, accessCode)
+                        if (id.isNotBlank() && tables.isNotEmpty()) {
+                            loginCustomerToTable(id, accessCode, accessCode.isNullOrBlank().not())
+                        }
                     }
                 }
 

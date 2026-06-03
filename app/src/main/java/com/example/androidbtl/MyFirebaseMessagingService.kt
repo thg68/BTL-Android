@@ -8,7 +8,7 @@ import com.google.firebase.messaging.RemoteMessage
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     /**
-     * Gọi khi nhận được thông báo lúc ứng dụng đang ở Foreground (đang mở).
+     * Gọi khi nhận được thông báo lúc ứng dụng đang mở.
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
@@ -34,8 +34,5 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCM_TOKEN", "Token mới: $token")
-        
-        // Gửi token này lên server/firestore nếu cần để nhắm mục tiêu thiết bị này
-        // Lưu ý: Thường sẽ lưu kèm theo UserId hoặc TableId
     }
 }
