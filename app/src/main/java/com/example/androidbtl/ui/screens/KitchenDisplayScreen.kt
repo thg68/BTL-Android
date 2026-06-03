@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.androidbtl.data.models.NotificationItem
 import com.example.androidbtl.data.models.OrderItem
 import com.example.androidbtl.ui.components.AsyncFoodImage
 import com.example.androidbtl.ui.components.EmptyState
@@ -34,7 +35,10 @@ import com.example.androidbtl.viewmodel.PosViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
-fun KitchenDisplayScreen(viewModel: PosViewModel) {
+fun KitchenDisplayScreen(
+    viewModel: PosViewModel,
+    onNotificationClick: (NotificationItem) -> Unit = {}
+) {
     val orders by viewModel.activeOrders.collectAsStateWithLifecycle()
     val menuItems by viewModel.menuItems.collectAsStateWithLifecycle()
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
@@ -76,7 +80,8 @@ fun KitchenDisplayScreen(viewModel: PosViewModel) {
                             notifications = notifications,
                             unreadCount = unreadCount,
                             onOpen = { viewModel.markAllRead() },
-                            onClear = { viewModel.clearNotifications() }
+                            onClear = { viewModel.clearNotifications() },
+                            onNotificationClick = onNotificationClick
                         )
                     }
 

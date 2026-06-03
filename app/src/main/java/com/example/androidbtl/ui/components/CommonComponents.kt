@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -215,7 +216,8 @@ fun StaffNotificationBell(
     notifications: List<NotificationItem>,
     unreadCount: Int,
     onOpen: () -> Unit,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    onNotificationClick: (NotificationItem) -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -316,6 +318,10 @@ fun StaffNotificationBell(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clickable {
+                                    expanded = false
+                                    onNotificationClick(notif)
+                                }
                                 .background(
                                     if (!notif.isRead) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                                     else Color.Transparent

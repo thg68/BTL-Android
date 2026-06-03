@@ -28,13 +28,17 @@ import com.example.androidbtl.ui.theme.ActionRed
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.androidbtl.data.models.NotificationItem
 
 private val menuCategories = listOf(
     "Thịt bò", "Thịt lợn", "Hải sản", "Rau nấm", "Ăn kèm", "Tráng miệng", "Nước lẩu"
 )
 
 @Composable
-fun StaffMenuScreen(viewModel: PosViewModel) {
+fun StaffMenuScreen(
+    viewModel: PosViewModel,
+    onNotificationClick: (NotificationItem) -> Unit = {}
+) {
     val menuItems by viewModel.menuItems.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingMenu.collectAsStateWithLifecycle()
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
@@ -73,7 +77,8 @@ fun StaffMenuScreen(viewModel: PosViewModel) {
                             notifications = notifications,
                             unreadCount = unreadCount,
                             onOpen = { viewModel.markAllRead() },
-                            onClear = { viewModel.clearNotifications() }
+                            onClear = { viewModel.clearNotifications() },
+                            onNotificationClick = onNotificationClick
                         )
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))

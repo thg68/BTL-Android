@@ -5,132 +5,165 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.androidbtl.data.models.OrderItem
 import com.example.androidbtl.ui.components.EmptyState
 import com.example.androidbtl.ui.components.QrPaymentDialog
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
-fun BillScreen(tableId: String, viewModel: PosViewModel) {
+fun BillScreen(
+        tableId: String,
+        viewModel: PosViewModel,
+        onShowMessage: (String) -> Unit = {},
+        onPaymentReported: () -> Unit = {}
+) {
     val orders by viewModel.activeOrders.collectAsStateWithLifecycle()
     val tableOrders = remember(orders, tableId) { orders.filter { it.tableId == tableId } }
 
-    val mergedItems = remember(tableOrders) {
-        tableOrders
-            .flatMap { it.items }
-            .filter { it.status == "Pending" || it.status == "Done" }
-            .groupBy { it.menuItemId }
-            .map { (_, items) ->
-                val first = items.first()
-                first.copy(quantity = items.sumOf { it.quantity })
+    val mergedItems =
+            remember(tableOrders) {
+                tableOrders
+                        .flatMap { it.items }
+                        .filter { it.status == "Pending" || it.status == "Done" }
+                        .groupBy { it.menuItemId }
+                        .map { (_, items) ->
+                            val first = items.first()
+                            first.copy(quantity = items.sumOf { it.quantity })
+                        }
+                        .sortedBy { it.name }
             }
-            .sortedBy { it.name }
-        }
     val totalAmount = remember(mergedItems) { mergedItems.sumOf { it.price * it.quantity } }
 
     var showQrDialog by remember { mutableStateOf(false) }
+    var hasNotifiedPayment by rememberSaveable(tableId) { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            if (mergedItems.isNotEmpty()) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 16.dp,
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(20.dp)
-                            .navigationBarsPadding()
-                    ) {
-                        Row(
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                if (mergedItems.isNotEmpty()) {
+                    Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "Tổng thanh toán",
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                "${"%,.0f".format(totalAmount)}đ",
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = BrandYellow
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { showQrDialog = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = BrandYellow),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.QrCode2,
-                                contentDescription = null,
-                                tint = Color.Black,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "TẠO QR THANH TOÁN",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.Black
-                            )
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 16.dp,
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp).navigationBarsPadding()) {
+                            Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                        "Tổng thanh toán",
+                                        fontSize = 16.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                        "${"%,.0f".format(totalAmount)}đ",
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = BrandYellow
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                    onClick = { showQrDialog = true },
+                                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                                    colors =
+                                            ButtonDefaults.buttonColors(
+                                                    containerColor = BrandYellow
+                                            ),
+                                    shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(
+                                        Icons.Filled.QrCode2,
+                                        contentDescription = null,
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                        "TẠO QR THANH TOÁN",
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.Black
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            OutlinedButton(
+                                    onClick = {
+                                        viewModel.notifyPaymentSuccess(tableId, totalAmount)
+                                        hasNotifiedPayment = true
+                                        onPaymentReported()
+                                        onShowMessage(
+                                                "Đã thông báo cho nhân viên kiểm tra thanh toán."
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                                    enabled = !hasNotifiedPayment,
+                                    shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(
+                                        Icons.Filled.Payments,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                        if (hasNotifiedPayment) "ĐÃ BÁO NHÂN VIÊN"
+                                        else "TÔI ĐÃ THANH TOÁN",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
+                modifier =
+                        Modifier.fillMaxSize()
+                                .padding(padding)
+                                .background(MaterialTheme.colorScheme.background)
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 2.dp
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 2.dp
             ) {
                 Column(
-                    modifier = Modifier.padding(top = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier.padding(top = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        Icons.Filled.Restaurant,
-                        contentDescription = null,
-                        tint = BrandYellow,
-                        modifier = Modifier.size(28.dp)
+                            Icons.Filled.Restaurant,
+                            contentDescription = null,
+                            tint = BrandYellow,
+                            modifier = Modifier.size(28.dp)
                     )
                     Text(
-                        "Hóa đơn Bàn $tableId",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        color = MaterialTheme.colorScheme.onSurface
+                            "Hóa đơn Bàn $tableId",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.onSurface
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 }
@@ -138,22 +171,17 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
 
             if (mergedItems.isEmpty()) {
                 EmptyState(
-                    icon = Icons.Filled.Receipt,
-                    title = "Chưa có món ăn nào",
-                    description = "Hoá đơn sẽ hiện khi món được gửi xuống bếp"
+                        icon = Icons.Filled.Receipt,
+                        title = "Chưa có món ăn nào",
+                        description = "Hoá đơn sẽ hiện khi món được gửi xuống bếp"
                 )
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    item {
-                        BillOrderCard(
-                            title = "Chi tiết các món",
-                            items = mergedItems
-                        )
-                    }
+                    item { BillOrderCard(title = "Chi tiết các món", items = mergedItems) }
                     item { Spacer(modifier = Modifier.height(100.dp)) }
                 }
             }
@@ -162,9 +190,9 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
 
     if (showQrDialog) {
         QrPaymentDialog(
-            amount = totalAmount,
-            tableId = tableId,
-            onDismiss = { showQrDialog = false }
+                amount = totalAmount,
+                tableId = tableId,
+                onDismiss = { showQrDialog = false }
         )
     }
 }
@@ -172,17 +200,17 @@ fun BillScreen(tableId: String, viewModel: PosViewModel) {
 @Composable
 fun BillOrderCard(title: String, items: List<OrderItem>) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                title,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+                    title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -190,8 +218,8 @@ fun BillOrderCard(title: String, items: List<OrderItem>) {
                 BillItemRow(item = item)
                 if (item != items.last()) {
                     HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                     )
                 }
             }
@@ -202,28 +230,28 @@ fun BillOrderCard(title: String, items: List<OrderItem>) {
 @Composable
 fun BillItemRow(item: OrderItem) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                item.name,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                    item.name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                "x${item.quantity} × ${"%,.0f".format(item.price)}đ",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                    "x${item.quantity} × ${"%,.0f".format(item.price)}đ",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Text(
-            "${"%,.0f".format(item.price * item.quantity)}đ",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = BrandYellow
+                "${"%,.0f".format(item.price * item.quantity)}đ",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = BrandYellow
         )
     }
 }

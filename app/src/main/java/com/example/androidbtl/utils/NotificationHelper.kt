@@ -9,6 +9,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.androidbtl.MainActivity
+import com.example.androidbtl.R
 
 class NotificationHelper(private val context: Context) {
     private val channelId = "restaurant_notifications"
@@ -41,9 +42,10 @@ class NotificationHelper(private val context: Context) {
             )
 
             val builder = NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(android.R.drawable.ic_dialog_info) // Sử dụng icon hệ thống cho an toàn
+                .setSmallIcon(R.drawable.ic_notification_saka)
                 .setContentTitle(title)
                 .setContentText(message)
+                .setColor(0xFFFFC107.toInt())
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)

@@ -37,9 +37,19 @@ object FcmSender {
                     put("body", message)
                 }
 
+                val androidNotification = JSONObject().apply {
+                    put("icon", "ic_notification_saka")
+                    put("color", "#FFC107")
+                }
+
+                val androidConfig = JSONObject().apply {
+                    put("notification", androidNotification)
+                }
+
                 val messageObj = JSONObject().apply {
                     put("token", targetToken)
                     put("notification", notification)
+                    put("android", androidConfig)
                 }
 
                 val root = JSONObject().apply {

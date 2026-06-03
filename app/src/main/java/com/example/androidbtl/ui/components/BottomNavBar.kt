@@ -34,7 +34,7 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
     object Tables : Screen("tables", Icons.Filled.TableRestaurant, "Bàn")
     object KDS : Screen("kds", Icons.Filled.Restaurant, "Bếp")
     object StaffMenu : Screen("staff_menu", Icons.Filled.Inventory, "Món ăn")
-    object Billing : Screen("billing", Icons.Filled.Payments, "Thu ngân")
+    object Billing : Screen("billing", Icons.Filled.Payments, "Xác nhận")
     object Revenue : Screen("revenue", Icons.Filled.BarChart, "Doanh thu")
     object StaffPOS : Screen("staff_pos/{tableId}", Icons.AutoMirrored.Filled.List, "Order") 
 
@@ -60,7 +60,7 @@ fun AppBottomNavBar(
         if (isCustomer) {
             listOf(Screen.CusHome, Screen.CusMenu, Screen.CusOffers, Screen.CusBill, Screen.CusProfile)
         } else {
-            listOf(Screen.Tables, Screen.KDS, Screen.StaffMenu, Screen.Revenue)
+            listOf(Screen.Tables, Screen.KDS, Screen.Billing, Screen.StaffMenu, Screen.Revenue)
         }
     }
 

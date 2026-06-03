@@ -16,6 +16,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AndroidBTL">
 
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification_saka" />
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_yellow" />
+
         <service
             android:name=".MyFirebaseMessagingService"
             android:exported="false">

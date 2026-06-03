@@ -44,5 +44,6 @@ data class NotificationItem(
     val id: String = "",
     val message: String = "",
     val timestamp: Long = System.currentTimeMillis(),
-    val isRead: Boolean = false
+    val isRead: Boolean = false,
+    val targetRoute: String = ""
 )

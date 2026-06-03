@@ -32,8 +32,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.example.androidbtl.data.models.NotificationItem
 import com.example.androidbtl.ui.components.AppBottomNavBar
 import com.example.androidbtl.ui.components.Screen
+import com.example.androidbtl.ui.screens.BillingScreen
 import com.example.androidbtl.ui.screens.BillScreen
 import com.example.androidbtl.ui.screens.BookingScreen
 import com.example.androidbtl.ui.screens.HomeScreen
@@ -63,6 +65,7 @@ fun AppNavigation() {
     var isCustomerRole by remember { mutableStateOf<Boolean?>(null) }
     var customerTableId by remember { mutableStateOf("") }
     var hasBeenServing by remember { mutableStateOf(false) }
+    var hasReportedPayment by remember { mutableStateOf(false) }
     var staffTabRoute by remember { mutableStateOf(Screen.Tables.route) }
 
     val tables by posViewModel.tables.collectAsStateWithLifecycle()
@@ -100,6 +103,7 @@ fun AppNavigation() {
         isCustomerRole = true
         customerTableId = normalizedTableId
         hasBeenServing = false
+        hasReportedPayment = false
         posViewModel.ensureOrderForTable(normalizedTableId)
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
@@ -122,22 +126,39 @@ fun AppNavigation() {
     val isTableServing = currentTable?.status == "Đang phục vụ"
     val isTableCleared = currentTable?.status == "Trống"
 
+    val openStaffNotificationTarget: (NotificationItem) -> Unit = { notification ->
+        val targetRoute = when {
+            notification.targetRoute.isNotBlank() -> notification.targetRoute
+            notification.id.startsWith("payment_") -> Screen.Billing.route
+            notification.id.startsWith("call_") -> Screen.Tables.route
+            notification.message.contains("món mới", ignoreCase = true) -> Screen.KDS.route
+            else -> Screen.Tables.route
+        }
+        staffTabRoute = targetRoute
+        if (currentRoute != Screen.Tables.route) {
+            navController.navigate(Screen.Tables.route) {
+                launchSingleTop = true
+            }
+        }
+    }
+
     LaunchedEffect(isTableServing) {
         if (isTableServing) hasBeenServing = true
     }
 
-    LaunchedEffect(isTableCleared, isCustomerRole) {
-        if (isCustomerRole == true && customerTableId.isNotEmpty() && isTableCleared && hasBeenServing && currentRoute != Screen.Login.route) {
+    LaunchedEffect(isTableCleared, hasReportedPayment, isCustomerRole) {
+        if (isCustomerRole == true && customerTableId.isNotEmpty() && isTableCleared && hasBeenServing && hasReportedPayment && currentRoute != Screen.Login.route) {
             scope.launch {
                 snackbarHostState.showSnackbar("Cảm ơn quý khách! Bạn sẽ tự động đăng xuất sau 30 giây.")
             }
             delay(30000L)
             if (isCustomerRole == true && customerTableId.isNotEmpty()) {
                 val stillCleared = posViewModel.tables.value.find { it.id == customerTableId }?.status == "Trống"
-                if (stillCleared) {
+                if (stillCleared && hasReportedPayment) {
                     isCustomerRole = null
                     customerTableId = ""
                     hasBeenServing = false
+                    hasReportedPayment = false
                     navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
                 }
             }
@@ -197,7 +218,15 @@ fun AppNavigation() {
                         onCustomerLogin = { tableId, accessCode -> loginCustomerToTable(tableId, accessCode) },
                         onStaffLogin = {
                             isCustomerRole = false
+                            customerTableId = ""
+                            hasBeenServing = false
+                            hasReportedPayment = false
                             staffTabRoute = Screen.Tables.route
+                            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                                if (task.isSuccessful) {
+                                    posViewModel.registerStaffFcmToken(task.result)
+                                }
+                            }
                             navController.navigate(Screen.Tables.route) {
                                 popUpTo(Screen.Login.route) { inclusive = true }
                             }
@@ -226,22 +255,27 @@ fun AppNavigation() {
 
                 composable(Screen.Tables.route) {
                     when (staffTabRoute) {
-                        Screen.KDS.route -> KitchenDisplayScreen(viewModel = posViewModel)
-                        Screen.StaffMenu.route -> StaffMenuScreen(viewModel = posViewModel)
+                        Screen.KDS.route -> KitchenDisplayScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget)
+                        Screen.Billing.route -> BillingScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget)
+                        Screen.StaffMenu.route -> StaffMenuScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget)
                         Screen.Revenue.route -> RevenueScreen(viewModel = posViewModel)
                         else -> TableManagementScreen(
                             viewModel = posViewModel,
                             onLogout = {
                                 isCustomerRole = null
+                                customerTableId = ""
                                 staffTabRoute = Screen.Tables.route
+                                hasBeenServing = false
+                                hasReportedPayment = false
                                 navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
-                            }
+                            },
+                            onNotificationClick = openStaffNotificationTarget
                         )
                     }
                 }
-                composable(Screen.KDS.route) { KitchenDisplayScreen(viewModel = posViewModel) }
-                composable(Screen.StaffMenu.route) { StaffMenuScreen(viewModel = posViewModel) }
-                composable(Screen.Billing.route) { com.example.androidbtl.ui.screens.BillingScreen(viewModel = posViewModel) }
+                composable(Screen.KDS.route) { KitchenDisplayScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget) }
+                composable(Screen.StaffMenu.route) { StaffMenuScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget) }
+                composable(Screen.Billing.route) { BillingScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget) }
                 composable(Screen.Revenue.route) { RevenueScreen(viewModel = posViewModel) }
                 composable(
                     route = "staff_pos/{tableId}",
@@ -288,7 +322,12 @@ fun AppNavigation() {
                     arguments = listOf(navArgument("tableId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val id = backStackEntry.arguments?.getString("tableId").orEmpty()
-                    BillScreen(tableId = id, viewModel = posViewModel)
+                    BillScreen(
+                        tableId = id,
+                        viewModel = posViewModel,
+                        onShowMessage = showMessage,
+                        onPaymentReported = { hasReportedPayment = true }
+                    )
                 }
                 composable(Screen.CusProfile.route) {
                     ProfileScreen(
@@ -297,6 +336,8 @@ fun AppNavigation() {
                         onLogout = {
                             isCustomerRole = null
                             customerTableId = ""
+                            hasBeenServing = false
+                            hasReportedPayment = false
                             navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
                         }
                     )

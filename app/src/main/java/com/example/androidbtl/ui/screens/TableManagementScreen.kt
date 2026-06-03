@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.androidbtl.data.models.Order
+import com.example.androidbtl.data.models.NotificationItem
 import com.example.androidbtl.data.models.RestaurantTable
 import com.example.androidbtl.ui.components.QrPaymentDialog
 import com.example.androidbtl.ui.components.StaffNotificationBell
@@ -82,7 +83,8 @@ private const val TABLE_LINK_SCHEME = "androidbtl://table"
 @Composable
 fun TableManagementScreen(
     viewModel: PosViewModel,
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onNotificationClick: (NotificationItem) -> Unit = {}
 ) {
     val tables by viewModel.tables.collectAsStateWithLifecycle()
     val activeOrders by viewModel.activeOrders.collectAsStateWithLifecycle()
@@ -262,7 +264,8 @@ fun TableManagementScreen(
                                 notifications = notifications,
                                 unreadCount = unreadCount,
                                 onOpen = { viewModel.markAllRead() },
-                                onClear = { viewModel.clearNotifications() }
+                                onClear = { viewModel.clearNotifications() },
+                                onNotificationClick = onNotificationClick
                             )
                             IconButton(onClick = { showLogoutDialog = true }) {
                                 Icon(
