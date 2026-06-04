@@ -222,7 +222,6 @@ fun POSOrderScreen(
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-            // Advanced UX: Modern Category Bar with Icons
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -280,7 +279,6 @@ fun POSOrderScreen(
                         }
                     } else {
                         item {
-                            // Advanced UX: Promo Card
                             PromoOrderCard()
                         }
 

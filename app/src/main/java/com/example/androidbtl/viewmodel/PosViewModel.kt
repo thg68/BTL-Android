@@ -579,13 +579,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Khách đã báo thanh toán: tạo notification cho nhân viên và gửi FCM tới thiết bị staff.
      *
-     * Hàm này chưa đóng order. Nó chỉ đưa hóa đơn vào luồng xử lý của nhân viên,
-     * còn việc xác nhận tiền đã vào tài khoản sẽ diễn ra ở BillingScreen.
+     * Hàm này không đóng order hoặc đóng bàn; BillingScreen mới là nơi nhân viên xác nhận tiền.
      */
     fun notifyPaymentSuccess(tableId: String, amount: Double) {
         if (tableId.isBlank() || amount <= 0.0) return
         val orderId = _activeOrders.value.find { it.tableId == tableId && it.status == "Open" }?.id
-        // Dùng orderId làm notification id nếu có để cùng một hóa đơn không tạo quá nhiều bản ghi trùng.
         val notificationId =
                 if (orderId.isNullOrBlank()) {
                     "payment_${tableId}_${System.currentTimeMillis()}"
@@ -596,7 +594,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         val message =
                 "Bàn $tableId đã báo thanh toán thành công ($amountText). Vui lòng kiểm tra và xác nhận hóa đơn."
 
-        // targetRoute=billing giúp nhân viên bấm notification là nhảy thẳng tới tab xác nhận.
+        // targetRoute=billing để bấm notification là mở thẳng tab xác nhận thanh toán.
         publishStaffNotification(notificationId, message, "billing")
         sendFcmToStaff("Khách đã thanh toán", message)
     }
@@ -630,8 +628,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun ensureOrderForTable(tableId: String) {
         if (tableId.isBlank()) return
-        // Khách vào bàn cần có đúng một order Open để thêm món và tính hóa đơn.
-        // Nếu order đã tồn tại thì chỉ bảo đảm bàn đang ở trạng thái Đang phục vụ.
+        // Mỗi bàn đang phục vụ cần một order Open để khách thêm món và xem hóa đơn.
         db.collection("orders")
                 .whereEqualTo("tableId", tableId)
                 .whereEqualTo("status", "Open")
@@ -649,10 +646,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         db.collection("menu_items").document(menuItemId).update("available", isAvailable)
     }
 
+    /**
+     * Thêm món vào giỏ của order; nếu món đã có trong Cart thì tăng quantity.
+     */
     fun addMenuItemToOrder(orderId: String, menuItem: MenuItem) {
         if (orderId.isBlank() || !menuItem.isAvailable) return
 
-        // Cập nhật StateFlow trước để UI phản hồi ngay, sau đó transaction sẽ đồng bộ Firestore.
+        // Optimistic update giúp UI phản hồi ngay; transaction bên dưới đồng bộ Firestore.
         val currentOrders = _activeOrders.value.toMutableList()
         val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
         if (orderIdx != -1) {
@@ -663,11 +663,9 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         it.menuItemId == menuItem.id && it.status == "Cart"
                     }
             if (existingIdx >= 0) {
-                // Nếu món vẫn còn trong giỏ, tăng quantity thay vì tạo dòng mới.
                 val existingItem = updatedItems[existingIdx]
                 updatedItems[existingIdx] = existingItem.copy(quantity = existingItem.quantity + 1)
             } else {
-                // Món mới luôn vào Cart; bếp chỉ nhìn thấy sau khi sendOrderToKitchen chuyển sang Pending.
                 updatedItems.add(
                         OrderItem(
                                 menuItemId = menuItem.id,
@@ -688,7 +686,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
         val orderRef = db.collection("orders").document(orderId)
         db.runTransaction { transaction ->
-            // Transaction tránh mất dữ liệu nếu nhiều thiết bị cùng thêm món vào một order.
+            // Transaction tránh mất dữ liệu khi nhiều thiết bị cùng thêm món.
             val snapshot = transaction.get(orderRef)
             val order = snapshot.toObject(Order::class.java) ?: return@runTransaction
             val existingIndex =
@@ -758,10 +756,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Nhân viên xác nhận thanh toán: đóng order, tính lại tổng tiền và trả bàn về Trống.
-     *
-     * Sau khi table.status = Trống, AppNavigation phía khách sẽ nhận snapshot mới
-     * và bắt đầu luồng snackbar cảm ơn + tự đăng xuất nếu khách đã báo thanh toán.
+     * Nhân viên xác nhận thanh toán: đóng order và tính lại tổng tiền.
+     * Bàn vẫn mở cho đến khi nhân viên gọi closeTable().
      */
     fun closeOrder(orderId: String, tableId: String) {
         if (orderId.isBlank()) return
@@ -779,18 +775,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                             )
                     )
                     .addOnSuccessListener {
-                        if (tableId.isNotBlank()) {
-                            db.collection("tables")
-                                    .document(tableId)
-                                    .update(
-                                            mapOf(
-                                                    "status" to "Trống",
-                                                    "accessCode" to "",
-                                                    "fcmToken" to ""
-                                            )
-                                    )
-                        }
-                        Log.d("PosViewModel", "Order $orderId closed successfully")
+                        Log.d("PosViewModel", "Order $orderId for table $tableId closed successfully")
                     }
                     .addOnFailureListener { e ->
                         Log.e("PosViewModel", "Failed to close order $orderId", e)
@@ -798,6 +783,56 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         } catch (ex: Exception) {
             Log.e("PosViewModel", "Crash in closeOrder", ex)
         }
+    }
+
+    /**
+     * Nhân viên đóng phiên bàn từ setting bàn.
+     * Xóa accessCode/fcmToken để QR phiên cũ hết hiệu lực và AppNavigation tự logout khách.
+     */
+    fun closeTable(tableId: String) {
+        if (tableId.isBlank()) return
+
+        fun clearTableSession() {
+            db.collection("tables")
+                    .document(tableId)
+                    .update(
+                            mapOf(
+                                    "status" to "Trống",
+                                    "accessCode" to "",
+                                    "fcmToken" to ""
+                            )
+                    )
+                    .addOnFailureListener { e ->
+                        Log.e("PosViewModel", "Failed to clear table $tableId", e)
+                    }
+        }
+
+        db.collection("orders")
+                .whereEqualTo("tableId", tableId)
+                .whereEqualTo("status", "Open")
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    if (snapshot.isEmpty) {
+                        clearTableSession()
+                    } else {
+                        snapshot.documents.forEach { doc ->
+                            val order = doc.toObject(Order::class.java)
+                            val total = order?.items.orEmpty().sumOf { it.price * it.quantity }
+                            doc.reference.update(
+                                    mapOf(
+                                            "status" to "Closed",
+                                            "totalAmount" to total,
+                                            "timestamp" to System.currentTimeMillis()
+                                    )
+                            )
+                        }
+                        clearTableSession()
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("PosViewModel", "Failed to close table $tableId", e)
+                    clearTableSession()
+                }
     }
 
     /**

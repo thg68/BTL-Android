@@ -52,7 +52,7 @@ SaKa System hỗ trợ khách quét QR/nhập số bàn để gọi món, theo d
 Dự án là ứng dụng Android single-module, theo hướng **MVVM + component-based UI**.
 
 - `MainActivity` khởi tạo theme và gọi `AppNavigation`.
-- `AppNavigation` quản lý role khách/nhân viên, route, bottom navigation, snackbar và auto logout sau thanh toán.
+- `AppNavigation` quản lý role khách/nhân viên, route, bottom navigation, snackbar và auto logout khi nhân viên đóng bàn.
 - `PosViewModel` là lớp trung tâm quản lý dữ liệu, realtime listener và thao tác Firestore.
 - Các màn hình trong `ui/screens` chỉ tập trung vào UI và gọi ViewModel qua callback.
 - Các component dùng chung nằm trong `ui/components`.
@@ -108,8 +108,8 @@ Tài liệu phân tích chi tiết từng UI nằm trong thư mục `docs/`.
 6. Khi gửi bếp, món chuyển sang `Pending`.
 7. Bếp chuyển món qua `Cooking` rồi `Done`.
 8. Khách xem hóa đơn, tạo QR VietQR và bấm báo đã thanh toán.
-9. Nhân viên xác nhận thanh toán, order chuyển sang `Closed`, bàn về `Trống`.
-10. Khách nhận snackbar cảm ơn và tự động đăng xuất sau 30 giây.
+9. Nhân viên xác nhận thanh toán, order chuyển sang `Closed`.
+10. Khi phục vụ xong, nhân viên bấm `Đóng bàn`; bàn về `Trống` và khách đang đăng nhập ở bàn đó tự động đăng xuất.
 
 ### Luồng nhân viên
 
@@ -118,8 +118,9 @@ Tài liệu phân tích chi tiết từng UI nằm trong thư mục `docs/`.
 3. Nhân viên có thể mở bàn, đặt bàn, tạo QR đăng nhập hoặc QR thanh toán.
 4. Màn bếp xử lý món theo trạng thái.
 5. Màn xác nhận thanh toán hiển thị các hóa đơn đang chờ xử lý.
-6. Màn quản lý món cho phép cập nhật thực đơn.
-7. Màn doanh thu thống kê các order đã đóng trong ngày.
+6. Setting bàn cho phép đóng bàn đang mở để kết thúc phiên khách.
+7. Màn quản lý món cho phép cập nhật thực đơn.
+8. Màn doanh thu thống kê các order đã đóng trong ngày.
 
 ## Firebase Firestore
 
@@ -248,6 +249,6 @@ Sau khi cấu hình Firebase, nên kiểm tra các flow sau:
 5. Khách nhận thông báo món sẵn sàng.
 6. Khách tạo QR và báo đã thanh toán.
 7. Nhân viên thấy hóa đơn ở tab xác nhận thanh toán.
-8. Nhân viên xác nhận, bàn trở về trống.
-9. Khách nhận snackbar cảm ơn và tự đăng xuất sau 30 giây.
-
+8. Nhân viên xác nhận thanh toán, order chuyển sang đã đóng.
+9. Nhân viên đóng bàn ở setting bàn.
+10. Khách đang đăng nhập ở bàn đó tự động đăng xuất.

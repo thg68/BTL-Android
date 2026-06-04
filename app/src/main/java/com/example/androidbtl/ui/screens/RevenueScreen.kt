@@ -27,7 +27,6 @@ import java.util.*
 fun RevenueScreen(viewModel: PosViewModel) {
     val closedOrders by viewModel.closedOrders.collectAsStateWithLifecycle()
     
-    // Lọc đơn hàng chỉ trong ngày hôm nay
     val todayOrders = remember(closedOrders) {
         // Mốc hôm nay lấy theo timezone thiết bị để lọc giao dịch trong ngày.
         val calendar = Calendar.getInstance()
@@ -47,7 +46,6 @@ fun RevenueScreen(viewModel: PosViewModel) {
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
     ) {
-        // Top Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = Color.White,
@@ -65,7 +63,6 @@ fun RevenueScreen(viewModel: PosViewModel) {
             }
         }
 
-        // Revenue Card
         Card(
             modifier = Modifier
                 .fillMaxWidth()

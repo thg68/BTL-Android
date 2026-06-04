@@ -81,7 +81,7 @@ import qrcode.QRCode
 private const val TABLE_LINK_SCHEME = "androidbtl://table"
 
 /**
- * Tab quản lý bàn: sơ đồ bàn, mở bàn bằng QR, đặt bàn, thanh toán và CRUD bàn.
+ * Tab quản lý bàn: mở/đóng phiên bàn, đặt bàn, QR đăng nhập, QR thanh toán và CRUD bàn.
  */
 @Composable
 fun TableManagementScreen(
@@ -95,7 +95,6 @@ fun TableManagementScreen(
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
     val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
 
-    // Các state này chỉ điều khiển dialog/overlay của màn quản lý bàn, không ghi trực tiếp vào Firestore.
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var editingTable by remember { mutableStateOf<RestaurantTable?>(null) }
@@ -122,7 +121,6 @@ fun TableManagementScreen(
     }
 
     if (showAddDialog || editingTable != null) {
-        // Cùng một form xử lý cả thêm bàn và sửa bàn; editingTable != null nghĩa là đang sửa.
         TableDialog(
             table = editingTable,
             onDismiss = { showAddDialog = false; editingTable = null },
@@ -137,17 +135,19 @@ fun TableManagementScreen(
     }
 
     selectedTable?.let { table ->
-        // Bấm bàn mở các thao tác vận hành chính cho bàn đó:
-        // đặt/hủy đặt, mở QR đăng nhập bàn, hoặc tạo QR thanh toán theo order hiện tại.
         val activeOrder = activeOrders.find { it.tableId == table.id }
         TableSettingsDialog(
             table = table,
             activeOrder = activeOrder,
             onDismiss = { selectedTable = null },
             onOpenTableQr = {
-                // Mở bàn sinh accessCode và đổi bàn sang Đang phục vụ.
-                // QR chứa accessCode này để khách quét vào được kể cả khi bàn đã có người.
-                val accessCode = viewModel.openTableForCustomer(table.id)
+                // Bàn đang phục vụ dùng lại accessCode hiện tại để không ghi đè phiên khách.
+                val accessCode =
+                    if (table.status == "Đang phục vụ" && table.accessCode.isNotBlank()) {
+                        table.accessCode
+                    } else {
+                        viewModel.openTableForCustomer(table.id)
+                    }
                 selectedTable = null
                 accessQrTable = table.copy(status = "Đang phục vụ", accessCode = accessCode)
             },
@@ -156,9 +156,13 @@ fun TableManagementScreen(
                 else viewModel.reserveTable(table.id)
                 selectedTable = null
             },
+            onCloseTable = {
+                // Đóng phiên bàn sẽ xóa QR/token và làm khách ở bàn đó logout.
+                viewModel.closeTable(table.id)
+                selectedTable = null
+            },
             onPaymentQr = { amount ->
-                // QR thanh toán dùng số tiền của activeOrder hiện tại, không đóng order ngay.
-                // Order chỉ đóng khi nhân viên xác nhận ở BillingScreen.
+                // QR thanh toán không đóng order; nhân viên vẫn phải xác nhận ở BillingScreen.
                 selectedTable = null
                 paymentRequest = table.id to amount
             }
@@ -359,13 +363,14 @@ private fun TableSettingsDialog(
     onDismiss: () -> Unit,
     onOpenTableQr: () -> Unit,
     onReserveTable: () -> Unit,
+    onCloseTable: () -> Unit,
     onPaymentQr: (Double) -> Unit
 ) {
-    // payableAmount lấy từ order đang mở của bàn. Khi chưa có order hoặc chưa có món thì không cho tạo QR.
+    // Chưa có món/order thì không cho tạo QR thanh toán.
     val payableAmount = activeOrder?.items.orEmpty().sumOf { it.price * it.quantity }
-    // Bàn đang phục vụ không được đặt lại hoặc mở QR mới để tránh ghi đè phiên khách hiện tại.
+    // QR đăng nhập vẫn hiện khi bàn đang phục vụ để nhân viên mở lại mã cho khách cùng bàn.
     val canReserve = table.status != "Đang phục vụ"
-    val canOpenTable = table.status != "Đang phục vụ"
+    val canCloseTable = table.status == "Đang phục vụ"
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -393,17 +398,20 @@ private fun TableSettingsDialog(
                         }
                     )
                 }
-                if (canOpenTable) {
-                    Button(
-                        onClick = onOpenTableQr,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandYellow)
-                    ) {
-                        Icon(Icons.Filled.QrCode2, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Black)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Mở bàn + QR đăng nhập", color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
+                Button(
+                    onClick = onOpenTableQr,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandYellow)
+                ) {
+                    Icon(Icons.Filled.QrCode2, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Black)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (table.status == "Đang phục vụ") "QR đăng nhập"
+                        else "Mở bàn + QR đăng nhập",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
                 OutlinedButton(
                     onClick = { onPaymentQr(payableAmount) },
@@ -423,6 +431,19 @@ private fun TableSettingsDialog(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (canCloseTable) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                    Button(
+                        onClick = onCloseTable,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ActionRed)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Đóng bàn", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         },
         confirmButton = {},
@@ -437,8 +458,7 @@ private fun TableAccessQrDialog(
     table: RestaurantTable,
     onDismiss: () -> Unit
 ) {
-    // QR mở bàn là deep link chứa tableId và accessCode.
-    // Khách quét mã này sẽ đi qua AppNavigation và được login vào đúng phiên bàn.
+    // Deep link chứa accessCode phiên bàn để khách quét QR vào đúng bàn đang mở.
     val payload = "$TABLE_LINK_SCHEME/${table.id}?code=${table.accessCode}"
     val qrBitmap: ImageBitmap = remember(payload) {
         val bytes = QRCode.ofSquares()

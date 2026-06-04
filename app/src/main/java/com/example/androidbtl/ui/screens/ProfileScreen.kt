@@ -45,7 +45,6 @@ fun ProfileScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Top Bar - Simplified
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
@@ -102,7 +101,6 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Appearance Toggle
             ProfileMenuToggle(
                 title = if (isDark) "Chế độ tối" else "Chế độ sáng",
                 icon = if (isDark) Icons.Filled.DarkMode else Icons.Filled.LightMode,
@@ -110,7 +108,6 @@ fun ProfileScreen(
                 onCheckedChange = { isDark = it }
             )
 
-            // Logout Button
             ProfileMenuItem(
                 title = "Đăng xuất khỏi bàn",
                 icon = Icons.AutoMirrored.Filled.Logout,

@@ -32,16 +32,14 @@ import com.example.androidbtl.viewmodel.PosViewModel
 fun BillScreen(
         tableId: String,
         viewModel: PosViewModel,
-        onShowMessage: (String) -> Unit = {},
-        onPaymentReported: () -> Unit = {}
+        onShowMessage: (String) -> Unit = {}
 ) {
     val orders by viewModel.activeOrders.collectAsStateWithLifecycle()
     val tableOrders = remember(orders, tableId) { orders.filter { it.tableId == tableId } }
 
     val mergedItems =
             remember(tableOrders) {
-                // Hóa đơn chỉ lấy món đã gửi bếp/đã hoàn tất, không tính món còn trong Cart.
-                // Sau đó gộp cùng menuItemId để một món chỉ hiện một dòng với tổng quantity.
+                // Hóa đơn không tính món còn trong Cart; mỗi món trùng được gộp thành một dòng.
                 tableOrders
                         .flatMap { it.items }
                         .filter { it.status == "Pending" || it.status == "Done" }
@@ -113,11 +111,10 @@ fun BillScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             OutlinedButton(
                                     onClick = {
-                                        // Khách báo đã thanh toán để nhân viên thấy ở tab xác nhận thanh toán.
-                                        // Nút bị khóa sau lần bấm đầu để tránh spam notification cùng một hóa đơn.
+                                        // Báo nhân viên kiểm tra thanh toán, không tự đóng order/bàn.
+                                        // Khóa nút sau lần đầu để tránh spam notification cùng hóa đơn.
                                         viewModel.notifyPaymentSuccess(tableId, totalAmount)
                                         hasNotifiedPayment = true
-                                        onPaymentReported()
                                         onShowMessage(
                                                 "Đã thông báo cho nhân viên kiểm tra thanh toán."
                                         )

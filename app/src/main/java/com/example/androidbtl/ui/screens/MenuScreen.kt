@@ -97,7 +97,6 @@ fun MenuScreen() {
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
     ) {
-        // App Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = Color.White,
@@ -112,7 +111,6 @@ fun MenuScreen() {
             )
         }
 
-        // Category Tabs
         LazyRow(
             modifier = Modifier.padding(vertical = 12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -136,7 +134,6 @@ fun MenuScreen() {
             }
         }
 
-        // Detailed List
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 100.dp),
@@ -184,7 +181,7 @@ fun MenuItemCard(title: String, description: String, price: Double) {
                 Text("${"%,.0f".format(price)}đ", color = BrandYellow, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
             IconButton(
-                onClick = { /*TODO*/ },
+                onClick = {},
                 modifier = Modifier
                     .background(BrandYellow, RoundedCornerShape(24.dp))
                     .size(40.dp)

@@ -30,10 +30,8 @@ import com.example.androidbtl.ui.theme.BrandYellow
  * Danh sách route chính của app, gom route + icon + title để tránh hard-code rải rác.
  */
 sealed class Screen(val route: String, val icon: ImageVector, val title: String) {
-    // Shared / System
     object Login : Screen("login", Icons.Filled.AccountCircle, "Đăng nhập")
     
-    // Staff Screens
     object Tables : Screen("tables", Icons.Filled.TableRestaurant, "Bàn")
     object KDS : Screen("kds", Icons.Filled.Restaurant, "Bếp")
     object StaffMenu : Screen("staff_menu", Icons.Filled.Inventory, "Món ăn")
@@ -41,7 +39,6 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
     object Revenue : Screen("revenue", Icons.Filled.BarChart, "Doanh thu")
     object StaffPOS : Screen("staff_pos/{tableId}", Icons.AutoMirrored.Filled.List, "Order") 
 
-    // Customer Screens
     object CusHome : Screen("cus_home", Icons.Filled.Home, "Trang chủ")
     object CusMenu : Screen("cus_menu", Icons.Filled.RestaurantMenu, "Thực đơn")
     object CusOffers : Screen("cus_offers", Icons.Filled.LocalOffer, "Ưu đãi")
@@ -76,7 +73,7 @@ fun AppBottomNavBar(
     val selectedRoute = if (!isCustomer && staffCurrentRoute != null) staffCurrentRoute else currentRoute
     val currentBase = remember(selectedRoute) { selectedRoute?.substringBefore("/") }
 
-    // Hide bottom bar on login and deep POS screens
+    // Login và màn POS chi tiết không dùng bottom bar.
     if (currentRoute == Screen.Login.route) return
     if (currentRoute?.startsWith("staff_pos") == true) return
 

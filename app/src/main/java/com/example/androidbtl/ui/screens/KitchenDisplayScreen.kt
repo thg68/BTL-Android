@@ -48,7 +48,6 @@ fun KitchenDisplayScreen(
     val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     
-    // 0: Cần làm, 1: Đang nấu, 2: Hoàn tất
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Cần làm", "Đang nấu", "Hoàn tất")
 
@@ -88,11 +87,10 @@ fun KitchenDisplayScreen(
                         )
                     }
 
-                    // --- SEGMENTED TAB (Pill Shape) ---
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp) // Sử dụng tham số tường minh start/end/bottom
+                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                             .height(54.dp)
                             .background(Color(0xFFF1F1F1), RoundedCornerShape(27.dp))
                             .padding(4.dp)
@@ -229,7 +227,6 @@ fun KitchenItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Hiển thị ảnh món ăn
                 AsyncFoodImage(
                     imageUrl = imageUrl,
                     contentDescription = null,
