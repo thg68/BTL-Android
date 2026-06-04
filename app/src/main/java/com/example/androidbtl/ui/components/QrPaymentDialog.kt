@@ -40,6 +40,10 @@ import com.example.androidbtl.data.VietQrGenerator
 import com.example.androidbtl.ui.theme.BrandYellow
 import qrcode.QRCode
 
+/**
+ * Dialog QR thanh toán VietQR cho một bàn.
+ * Payload được tạo từ số tiền hiện tại và nội dung chuyển khoản BAN<tableId>.
+ */
 @Composable
 fun QrPaymentDialog(
     amount: Double,
@@ -47,9 +51,11 @@ fun QrPaymentDialog(
     onDismiss: () -> Unit
 ) {
     val amountLong = amount.toLong()
+    // Nội dung chuyển khoản gắn theo bàn để nhân viên dễ đối soát giao dịch trong app ngân hàng.
     val description = "BAN$tableId"
 
     val qrBitmap: ImageBitmap = remember(amountLong, description) {
+        // Tạo QR một lần cho mỗi cặp số tiền/nội dung để tránh render lại khi recomposition.
         val payload = VietQrGenerator.build(
             bankBin = VietQrConfig.MBBANK_BIN,
             accountNo = VietQrConfig.BANK_ACCOUNT_NUMBER,

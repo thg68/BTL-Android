@@ -20,12 +20,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Báo cáo doanh thu trong ngày từ các order đã đóng.
+ */
 @Composable
 fun RevenueScreen(viewModel: PosViewModel) {
     val closedOrders by viewModel.closedOrders.collectAsStateWithLifecycle()
     
     // Lọc đơn hàng chỉ trong ngày hôm nay
     val todayOrders = remember(closedOrders) {
+        // Mốc hôm nay lấy theo timezone thiết bị để lọc giao dịch trong ngày.
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)

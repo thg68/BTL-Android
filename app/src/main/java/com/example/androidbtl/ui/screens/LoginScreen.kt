@@ -112,6 +112,9 @@ private fun rememberLoginColors(): LoginColors {
     )
 }
 
+/**
+ * Màn đăng nhập chung: khách vào bàn bằng nhập tay/QR, nhân viên vào hệ thống.
+ */
 @Composable
 fun LoginScreen(
     viewModel: PosViewModel,
@@ -305,6 +308,10 @@ fun CustomerLoginTab(onLogin: (String, String?, Boolean) -> Unit, tables: List<R
     fun submitTable(id: String, accessCode: String? = null, fromQr: Boolean = false) {
         val normalizedId = id.trim()
         val normalizedAccessCode = accessCode.orEmpty()
+        // Phân biệt rõ nguồn login:
+        // - fromQr=false: khách tự nhập số bàn, không được vào bàn Đang phục vụ.
+        // - fromQr=true + accessCode: khách đang quét QR do nhân viên cấp cho phiên bàn hiện tại.
+        // Điều này cho phép nhóm khách cùng bàn quét lại QR để vào app, nhưng người ngoài nhập tay thì bị chặn.
         val hasQrAccess = fromQr && normalizedAccessCode.isNotBlank()
         val table = tables.find { it.id == normalizedId }
         when {
@@ -661,6 +668,9 @@ private fun CameraQrScanner(
     }
 }
 
+/**
+ * QR bàn có thể là deep link androidbtl://table/{id}?code=... hoặc chỉ là mã bàn đơn giản.
+ */
 private fun parseTableQrPayload(rawValue: String): TableQrPayload? {
     val value = rawValue.trim()
     if (value.isBlank()) return null

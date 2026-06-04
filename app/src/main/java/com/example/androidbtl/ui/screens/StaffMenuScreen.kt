@@ -34,6 +34,9 @@ private val menuCategories = listOf(
     "Thịt bò", "Thịt lợn", "Hải sản", "Rau nấm", "Ăn kèm", "Tráng miệng", "Nước lẩu"
 )
 
+/**
+ * Tab nhân viên quản lý thực đơn: CRUD món và bật/tắt trạng thái đang bán.
+ */
 @Composable
 fun StaffMenuScreen(
     viewModel: PosViewModel,
@@ -86,6 +89,7 @@ fun StaffMenuScreen(
             }
 
             when {
+                // Loading/empty/list được tách rõ để nhân viên biết dữ liệu đang tải hay thật sự chưa có món.
                 isLoading -> {
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
@@ -109,6 +113,7 @@ fun StaffMenuScreen(
                         items(menuItems, key = { it.id }) { item ->
                             StaffMenuItemCard(
                                 item = item,
+                                // Switch chỉ đổi field available, không xóa món khỏi menu để giữ lịch sử order.
                                 onAvailabilityChange = { viewModel.updateMenuItemAvailability(item.id, it) },
                                 onEdit = { editingItem = item },
                                 onDelete = { deletingItem = item }
@@ -133,6 +138,7 @@ fun StaffMenuScreen(
     }
 
     if (showAddDialog || editingItem != null) {
+        // Dùng chung một dialog cho cả thêm mới và chỉnh sửa món.
         MenuItemDialog(
             item = editingItem,
             onDismiss = {
@@ -142,10 +148,12 @@ fun StaffMenuScreen(
             onConfirm = { name, cat, price, desc, imgUrl ->
                 val current = editingItem
                 if (current != null) {
+                    // Sửa món dùng copy để giữ nguyên id Firestore của món cũ.
                     viewModel.updateMenuItem(
                         current.copy(name = name, category = cat, price = price, description = desc, imageUrl = imgUrl)
                     )
                 } else {
+                    // Thêm món mới để ViewModel tự tạo document và fallback ảnh theo tên/category nếu URL rỗng.
                     viewModel.addMenuItem(name, cat, price, desc, imgUrl)
                 }
                 showAddDialog = false

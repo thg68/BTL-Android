@@ -30,6 +30,9 @@ import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+/**
+ * Giỏ hàng của bàn: chỉ chứa món status Cart trước khi gửi xuống bếp.
+ */
 @Composable
 fun BookingScreen(
     tableId: String,
@@ -41,6 +44,7 @@ fun BookingScreen(
     val menuItems by viewModel.menuItems.collectAsStateWithLifecycle()
 
     val activeOrder = orders.find { it.tableId == tableId && it.status == "Open" }
+    // Cart là trạng thái tạm; chỉ khi gửi bếp mới chuyển sang Pending.
     val cartItems = activeOrder?.items?.filter { it.status == "Cart" } ?: emptyList()
     val totalAmount = cartItems.sumOf { it.price * it.quantity }
 

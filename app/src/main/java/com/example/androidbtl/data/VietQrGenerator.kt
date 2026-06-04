@@ -19,6 +19,9 @@ object VietQrGenerator {
     private const val CURRENCY_VND = "704"
     private const val COUNTRY_VN = "VN"
 
+    /**
+     * Sinh payload VietQR theo dạng TLV và gắn CRC16 ở cuối để app ngân hàng quét được.
+     */
     fun build(
         bankBin: String,
         accountNo: String,
@@ -35,6 +38,8 @@ object VietQrGenerator {
 
         val name = sanitize(accountName).take(25)
 
+        // Payload VietQR là chuỗi TLV: mỗi field gồm id + length + value.
+        // Thứ tự field ở đây bám theo cấu trúc EMV QR cho chuyển khoản ngân hàng.
         val sb = StringBuilder().apply {
             append(tlv("00", "01"))
             append(tlv("01", "12"))
@@ -66,6 +71,9 @@ object VietQrGenerator {
             .uppercase()
     }
 
+    /**
+     * CRC16-CCITT là checksum bắt buộc của payload VietQR/EMV QR.
+     */
     private fun crc16Ccitt(input: String): String {
         var crc = 0xFFFF
         for (b in input.toByteArray(Charsets.ISO_8859_1)) {

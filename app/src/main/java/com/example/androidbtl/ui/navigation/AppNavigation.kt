@@ -55,6 +55,10 @@ import kotlinx.coroutines.launch
 
 private const val TABLE_DEEP_LINK = "androidbtl://table/{tableId}?code={accessCode}"
 
+/**
+ * Root UI của app: giữ role hiện tại, điều phối navigation, snackbar,
+ * thông báo và luồng tự đăng xuất sau khi khách đã thanh toán.
+ */
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -62,6 +66,7 @@ fun AppNavigation() {
     val context = LocalContext.current
     val notificationHelper = remember { NotificationHelper(context) }
 
+    // Session UI cấp app: null = chưa đăng nhập, true = khách, false = nhân viên.
     var isCustomerRole by remember { mutableStateOf<Boolean?>(null) }
     var customerTableId by remember { mutableStateOf("") }
     var hasBeenServing by remember { mutableStateOf(false) }
@@ -77,6 +82,10 @@ fun AppNavigation() {
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
+    // Core login rule:
+    // - Nhập tay chỉ được vào bàn trống, tránh khách mới chiếm phiên của bàn đang phục vụ.
+    // - QR có access code là "vé vào phiên bàn" do nhân viên mở, nên được vào lại bàn đang phục vụ.
+    // - Access code chỉ dùng để phân biệt login QR với nhập tay; trạng thái hợp lệ vẫn kiểm tra ở Firestore.
     val loginCustomerToTable: (String, String?, Boolean) -> Unit = login@{ tableId, accessCode, fromQr ->
         val normalizedTableId = tableId.trim()
         val normalizedAccessCode = accessCode.orEmpty()
@@ -101,15 +110,18 @@ fun AppNavigation() {
             }
         }
 
+        // Sau khi qua validation, lưu session khách ở tầng navigation để toàn bộ tab dùng chung tableId.
         isCustomerRole = true
         customerTableId = normalizedTableId
         hasBeenServing = false
         hasReportedPayment = false
+        // Bảo đảm bàn có order mở trước khi khách vào menu, nếu chưa có thì ViewModel sẽ tạo mới.
         posViewModel.ensureOrderForTable(normalizedTableId)
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val token = task.result
+                // Token được lưu vào document bàn để bếp gửi push khi món chuyển sang Done.
                 posViewModel.updateTableFcmToken(normalizedTableId, token)
             }
         }
@@ -127,6 +139,10 @@ fun AppNavigation() {
     val isTableServing = currentTable?.status == "Đang phục vụ"
     val isTableCleared = currentTable?.status == "Trống"
 
+    // Click thông báo của nhân viên sẽ mở đúng tab liên quan:
+    // - payment_* hoặc targetRoute=billing -> tab xác nhận thanh toán.
+    // - call_* -> tab sơ đồ bàn để nhân viên biết bàn nào gọi.
+    // - "món mới" -> tab bếp/KDS để xử lý món vừa gửi xuống.
     val openStaffNotificationTarget: (NotificationItem) -> Unit = { notification ->
         val targetRoute = when {
             notification.targetRoute.isNotBlank() -> notification.targetRoute
@@ -147,13 +163,19 @@ fun AppNavigation() {
         if (isTableServing) hasBeenServing = true
     }
 
+    // Chỉ tự đăng xuất khách sau khi đủ 4 điều kiện:
+    // 1. Khách đang đăng nhập.
+    // 2. Bàn đã từng ở trạng thái phục vụ, tránh logout nhầm lúc mới vào.
+    // 3. Khách đã bấm báo thanh toán.
+    // 4. Nhân viên đã xác nhận, closeOrder trả bàn về Trống.
     LaunchedEffect(isTableCleared, hasReportedPayment, isCustomerRole) {
         if (isCustomerRole == true && customerTableId.isNotEmpty() && isTableCleared && hasBeenServing && hasReportedPayment && currentRoute != Screen.Login.route) {
             scope.launch {
                 snackbarHostState.showSnackbar("Cảm ơn quý khách! Bạn sẽ tự động đăng xuất sau 30 giây.")
             }
-            delay(30000L)
+            delay(30000L) // Chờ 30 giây để khách đọc thông báo trước khi tự đăng xuất.
             if (isCustomerRole == true && customerTableId.isNotEmpty()) {
+                // Sau 30 giây vẫn kiểm tra lại Firestore state để không logout sai nếu bàn bị mở lại.
                 val stillCleared = posViewModel.tables.value.find { it.id == customerTableId }?.status == "Trống"
                 if (stillCleared && hasReportedPayment) {
                     isCustomerRole = null
@@ -189,6 +211,7 @@ fun AppNavigation() {
     val noEnter: () -> EnterTransition = { EnterTransition.None }
     val noExit: () -> ExitTransition = { ExitTransition.None }
 
+    //Scaffold tạo layout chính. BottomBar chỉ hiện khi đã biết role.
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = {
@@ -257,6 +280,7 @@ fun AppNavigation() {
                 }
 
                 composable(Screen.Tables.route) {
+                    // Staff tabs render trong route gốc "tables" để chuyển tab nhanh và giữ state tốt hơn.
                     when (staffTabRoute) {
                         Screen.KDS.route -> KitchenDisplayScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget)
                         Screen.Billing.route -> BillingScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget)

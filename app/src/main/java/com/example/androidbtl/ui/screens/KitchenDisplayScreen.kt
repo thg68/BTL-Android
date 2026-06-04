@@ -34,6 +34,9 @@ import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+/**
+ * KDS cho bếp: chia món theo Pending, Cooking, Done và cập nhật trạng thái món.
+ */
 @Composable
 fun KitchenDisplayScreen(
     viewModel: PosViewModel,
@@ -157,6 +160,7 @@ fun KitchenDisplayScreen(
         }
         
         val filteredItems = remember(orders, currentStatus) {
+            // Lưu kèm orderId và index để update đúng item trong order gốc.
             val list = mutableListOf<Triple<String, Int, OrderItem>>()
             orders.forEach { order ->
                 order.items.forEachIndexed { index, item ->
@@ -192,6 +196,9 @@ fun KitchenDisplayScreen(
                         tableId = order?.tableId ?: "?",
                         status = item.status,
                         onAction = {
+                            // Pipeline bếp có 3 trạng thái chính:
+                            // Pending -> Cooking khi bếp bắt đầu làm.
+                            // Cooking -> Done khi món sẵn sàng; ViewModel sẽ gửi FCM về bàn.
                             val nextStatus = if (item.status == "Pending") "Cooking" else "Done"
                             viewModel.updateOrderItemStatus(orderId, index, nextStatus)
                         }

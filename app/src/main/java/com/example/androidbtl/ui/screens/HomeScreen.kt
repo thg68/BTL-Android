@@ -37,6 +37,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import java.util.*
 
+/**
+ * Trang chủ khách hàng: tổng quan bàn, tiến độ phục vụ, hành động nhanh và món nổi bật.
+ */
 @Composable
 fun HomeScreen(
     tableId: String,
@@ -52,6 +55,7 @@ fun HomeScreen(
     
     var selectedDish by remember { mutableStateOf<MenuItem?>(null) }
 
+    // Tiến độ phục vụ được tính từ order đang mở của đúng bàn khách.
     val currentOrder = activeOrders.find { it.tableId == tableId }
     val pendingCount = currentOrder?.items?.count { it.status == "Pending" } ?: 0
     val cookingCount = currentOrder?.items?.count { it.status == "Cooking" } ?: 0

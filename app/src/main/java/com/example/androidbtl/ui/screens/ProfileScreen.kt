@@ -27,6 +27,9 @@ import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.ui.theme.LocalThemeIsDark
 import com.example.androidbtl.viewmodel.PosViewModel
 
+/**
+ * Tài khoản khách hàng: hiển thị bàn hiện tại, đổi theme và đăng xuất khỏi bàn.
+ */
 @Composable
 fun ProfileScreen(
     tableId: String,

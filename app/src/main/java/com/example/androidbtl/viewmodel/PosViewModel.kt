@@ -576,9 +576,16 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 .addOnFailureListener { e -> Log.e("FCM", "Không thể lấy token nhân viên", e) }
     }
 
+    /**
+     * Khách đã báo thanh toán: tạo notification cho nhân viên và gửi FCM tới thiết bị staff.
+     *
+     * Hàm này chưa đóng order. Nó chỉ đưa hóa đơn vào luồng xử lý của nhân viên,
+     * còn việc xác nhận tiền đã vào tài khoản sẽ diễn ra ở BillingScreen.
+     */
     fun notifyPaymentSuccess(tableId: String, amount: Double) {
         if (tableId.isBlank() || amount <= 0.0) return
         val orderId = _activeOrders.value.find { it.tableId == tableId && it.status == "Open" }?.id
+        // Dùng orderId làm notification id nếu có để cùng một hóa đơn không tạo quá nhiều bản ghi trùng.
         val notificationId =
                 if (orderId.isNullOrBlank()) {
                     "payment_${tableId}_${System.currentTimeMillis()}"
@@ -589,6 +596,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         val message =
                 "Bàn $tableId đã báo thanh toán thành công ($amountText). Vui lòng kiểm tra và xác nhận hóa đơn."
 
+        // targetRoute=billing giúp nhân viên bấm notification là nhảy thẳng tới tab xác nhận.
         publishStaffNotification(notificationId, message, "billing")
         sendFcmToStaff("Khách đã thanh toán", message)
     }
@@ -622,6 +630,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun ensureOrderForTable(tableId: String) {
         if (tableId.isBlank()) return
+        // Khách vào bàn cần có đúng một order Open để thêm món và tính hóa đơn.
+        // Nếu order đã tồn tại thì chỉ bảo đảm bàn đang ở trạng thái Đang phục vụ.
         db.collection("orders")
                 .whereEqualTo("tableId", tableId)
                 .whereEqualTo("status", "Open")
@@ -642,6 +652,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     fun addMenuItemToOrder(orderId: String, menuItem: MenuItem) {
         if (orderId.isBlank() || !menuItem.isAvailable) return
 
+        // Cập nhật StateFlow trước để UI phản hồi ngay, sau đó transaction sẽ đồng bộ Firestore.
         val currentOrders = _activeOrders.value.toMutableList()
         val orderIdx = currentOrders.indexOfFirst { it.id == orderId }
         if (orderIdx != -1) {
@@ -652,9 +663,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         it.menuItemId == menuItem.id && it.status == "Cart"
                     }
             if (existingIdx >= 0) {
+                // Nếu món vẫn còn trong giỏ, tăng quantity thay vì tạo dòng mới.
                 val existingItem = updatedItems[existingIdx]
                 updatedItems[existingIdx] = existingItem.copy(quantity = existingItem.quantity + 1)
             } else {
+                // Món mới luôn vào Cart; bếp chỉ nhìn thấy sau khi sendOrderToKitchen chuyển sang Pending.
                 updatedItems.add(
                         OrderItem(
                                 menuItemId = menuItem.id,
@@ -675,6 +688,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
         val orderRef = db.collection("orders").document(orderId)
         db.runTransaction { transaction ->
+            // Transaction tránh mất dữ liệu nếu nhiều thiết bị cùng thêm món vào một order.
             val snapshot = transaction.get(orderRef)
             val order = snapshot.toObject(Order::class.java) ?: return@runTransaction
             val existingIndex =
@@ -700,6 +714,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * KDS cập nhật trạng thái món. Khi món Done, app gửi thông báo món sẵn sàng về bàn.
+     *
+     * itemIndex được lấy từ KitchenDisplayScreen để sửa đúng phần tử trong list items của order.
+     */
     fun updateOrderItemStatus(orderId: String, itemIndex: Int, newStatus: String) {
         if (orderId.isBlank()) return
         db.collection("orders").document(orderId).get().addOnSuccessListener { doc ->
@@ -738,6 +757,12 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Nhân viên xác nhận thanh toán: đóng order, tính lại tổng tiền và trả bàn về Trống.
+     *
+     * Sau khi table.status = Trống, AppNavigation phía khách sẽ nhận snapshot mới
+     * và bắt đầu luồng snackbar cảm ơn + tự đăng xuất nếu khách đã báo thanh toán.
+     */
     fun closeOrder(orderId: String, tableId: String) {
         if (orderId.isBlank()) return
         try {
@@ -775,6 +800,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Gửi các món trong giỏ xuống bếp, chuyển Cart -> Pending.
+     *
+     * Pending là trạng thái đầu tiên mà KitchenDisplayScreen hiển thị ở tab "Cần làm".
+     */
     fun sendOrderToKitchen(orderId: String) {
         if (orderId.isBlank()) return
         val order = _activeOrders.value.find { it.id == orderId } ?: return
@@ -855,6 +885,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 )
     }
 
+    /**
+     * Khách gọi phục vụ: tạo notification trong app nhân viên và gửi push notification.
+     *
+     * targetRoute=tables để nhân viên bấm notification là quay về sơ đồ bàn.
+     */
     fun callStaff(tableId: String) {
         if (tableId.isBlank()) return
         val msg = "Bàn $tableId đang gọi nhân viên!"

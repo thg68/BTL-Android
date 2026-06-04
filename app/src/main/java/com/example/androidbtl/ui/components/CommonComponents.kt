@@ -68,6 +68,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Ảnh món ăn dùng chung, có placeholder và giới hạn kích thước để list cuộn mượt hơn.
+ */
 @Composable
 fun AsyncFoodImage(
     imageUrl: String,
@@ -211,6 +214,10 @@ fun DishCardSkeleton() {
     }
 }
 
+/**
+ * Chuông thông báo realtime cho nhân viên.
+ * Click từng thông báo sẽ trả item lên AppNavigation để mở đúng tab liên quan.
+ */
 @Composable
 fun StaffNotificationBell(
     notifications: List<NotificationItem>,
@@ -225,6 +232,7 @@ fun StaffNotificationBell(
     Box {
         IconButton(onClick = {
             expanded = true
+            // Mở dropdown là xem thông báo, nên đánh dấu toàn bộ là đã đọc ở ViewModel.
             onOpen()
         }) {
             BadgedBox(
@@ -320,6 +328,7 @@ fun StaffNotificationBell(
                                 .fillMaxWidth()
                                 .clickable {
                                     expanded = false
+                                    // NotificationItem giữ targetRoute/id để AppNavigation quyết định tab cần mở.
                                     onNotificationClick(notif)
                                 }
                                 .background(

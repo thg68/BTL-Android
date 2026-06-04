@@ -40,6 +40,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * Màn gọi món chính cho cả khách và nhân viên POS theo bàn.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun POSOrderScreen(
@@ -59,10 +62,12 @@ fun POSOrderScreen(
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var selectedCategory by rememberSaveable { mutableStateOf("Tất cả") }
 
+    // Active order là đơn đang mở của bàn. Mọi món khách chọn sẽ đi vào order này với status Cart.
     val activeOrder = remember(orders, tableId) { orders.find { it.tableId == tableId } }
     val categories = remember(menuItems) { listOf("Tất cả") + menuItems.map { it.category }.distinct() }
 
     val filteredMenuItems = remember(menuItems, selectedCategory, searchQuery) {
+        // Lọc tại UI theo category và từ khóa để phản hồi ngay khi người dùng nhập/chọn.
         menuItems.filter {
             (selectedCategory == "Tất cả" || it.category == selectedCategory) &&
                 (
@@ -148,6 +153,7 @@ fun POSOrderScreen(
             )
         },
         bottomBar = {
+            // Bottom cart chỉ tính món còn trong Cart, tức là món đã chọn nhưng chưa gửi xuống bếp.
             val cartItems = activeOrder?.items?.filter { it.status == "Cart" } ?: emptyList()
             val cartCount = cartItems.sumOf { it.quantity }
             val totalAmount = cartItems.sumOf { it.price * it.quantity }
@@ -197,6 +203,8 @@ fun POSOrderScreen(
                             onClick = {
                                 if (activeOrder != null) {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    // Gửi bếp sẽ chuyển toàn bộ Cart -> Pending trong ViewModel.
+                                    // Sau bước này bếp/KDS mới nhìn thấy món ở tab "Cần làm".
                                     viewModel.sendOrderToKitchen(activeOrder.id)
                                     onShowMessage("Đơn hàng đã được gửi xuống bếp!")
                                 }
@@ -280,6 +288,8 @@ fun POSOrderScreen(
                             AdvancedMenuItemCard(item) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 cartAnimateTrigger++
+                                // Nếu bàn chưa có order mở, tạo order trước rồi yêu cầu khách thêm lại món.
+                                // Tránh add món vào order rỗng/chưa có document Firestore.
                                 if (activeOrder == null) {
                                     viewModel.createOrderForTable(tableId)
                                     onShowMessage("Đã mở bàn! Hãy thêm lại món nhé.")

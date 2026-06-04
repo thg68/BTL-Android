@@ -26,6 +26,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.androidbtl.ui.theme.BrandYellow
 
+/**
+ * Danh sách route chính của app, gom route + icon + title để tránh hard-code rải rác.
+ */
 sealed class Screen(val route: String, val icon: ImageVector, val title: String) {
     // Shared / System
     object Login : Screen("login", Icons.Filled.AccountCircle, "Đăng nhập")
@@ -47,6 +50,10 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
     object CusProfile : Screen("cus_profile", Icons.Filled.AccountCircle, "Tài khoản")
 }
 
+/**
+ * Bottom navigation dùng chung cho khách và nhân viên.
+ * Khách navigate route thật; nhân viên đổi tab qua callback để chuyển tab nhanh hơn.
+ */
 @Composable
 fun AppBottomNavBar(
     navController: NavController,
@@ -102,6 +109,7 @@ fun AppBottomNavBar(
                     if (currentBase == routeBase) return@NavigationBarItem
 
                     if (!isCustomer && onStaffTabSelected != null) {
+                        // Staff tabs dùng state trong AppNavigation, tránh tạo back stack mới khi đổi tab.
                         onStaffTabSelected(screen)
                         return@NavigationBarItem
                     }

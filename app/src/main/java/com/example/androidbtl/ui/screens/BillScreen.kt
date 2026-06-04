@@ -25,6 +25,9 @@ import com.example.androidbtl.ui.components.QrPaymentDialog
 import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 
+/**
+ * Hóa đơn khách hàng: xem tổng tiền, tạo QR VietQR và báo nhân viên đã thanh toán.
+ */
 @Composable
 fun BillScreen(
         tableId: String,
@@ -37,6 +40,8 @@ fun BillScreen(
 
     val mergedItems =
             remember(tableOrders) {
+                // Hóa đơn chỉ lấy món đã gửi bếp/đã hoàn tất, không tính món còn trong Cart.
+                // Sau đó gộp cùng menuItemId để một món chỉ hiện một dòng với tổng quantity.
                 tableOrders
                         .flatMap { it.items }
                         .filter { it.status == "Pending" || it.status == "Done" }
@@ -108,6 +113,8 @@ fun BillScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             OutlinedButton(
                                     onClick = {
+                                        // Khách báo đã thanh toán để nhân viên thấy ở tab xác nhận thanh toán.
+                                        // Nút bị khóa sau lần bấm đầu để tránh spam notification cùng một hóa đơn.
                                         viewModel.notifyPaymentSuccess(tableId, totalAmount)
                                         hasNotifiedPayment = true
                                         onPaymentReported()

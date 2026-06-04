@@ -26,6 +26,9 @@ data class Offer(
     val expiry: String
 )
 
+/**
+ * Tab ưu đãi của khách hàng. Dữ liệu hiện là danh sách tĩnh trong UI.
+ */
 @Composable
 fun OffersScreen() {
     val offers = remember {

@@ -83,6 +83,9 @@ val menuData = mapOf(
     )
 )
 
+/**
+ * Màn thực đơn tĩnh/demo. Luồng gọi món thật hiện dùng POSOrderScreen.
+ */
 @Composable
 fun MenuScreen() {
     val categories = menuData.keys.toList()
