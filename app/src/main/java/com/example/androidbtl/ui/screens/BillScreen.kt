@@ -26,7 +26,15 @@ import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 
 /**
- * Hóa đơn khách hàng: xem tổng tiền, tạo QR VietQR và báo nhân viên đã thanh toán.
+ * Màn hóa đơn của khách.
+ *
+ * Khách có thể:
+ * - Xem các món đã gửi bếp hoặc đã hoàn tất.
+ * - Tạo QR VietQR theo tổng tiền hiện tại.
+ * - Bấm báo đã thanh toán để nhân viên thấy hóa đơn ở tab xác nhận.
+ *
+ * Màn này không tự đóng order và không tự logout khách. Việc xác nhận tiền/đóng bàn
+ * là trách nhiệm của nhân viên ở BillingScreen và TableManagementScreen.
  */
 @Composable
 fun BillScreen(
@@ -39,7 +47,9 @@ fun BillScreen(
 
     val mergedItems =
             remember(tableOrders) {
-                // Hóa đơn không tính món còn trong Cart; mỗi món trùng được gộp thành một dòng.
+                // Không tính món còn trong Cart vì đó là món khách mới chọn nhưng chưa gửi bếp.
+                // Các dòng cùng menuItemId được gộp lại để hóa đơn dễ đọc, ví dụ cùng một món
+                // được gửi nhiều lần sẽ chỉ hiện một dòng với tổng quantity.
                 tableOrders
                         .flatMap { it.items }
                         .filter { it.status == "Pending" || it.status == "Done" }
@@ -111,8 +121,9 @@ fun BillScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             OutlinedButton(
                                     onClick = {
-                                        // Báo nhân viên kiểm tra thanh toán, không tự đóng order/bàn.
-                                        // Khóa nút sau lần đầu để tránh spam notification cùng hóa đơn.
+                                        // Đây chỉ là tín hiệu "khách đã chuyển khoản".
+                                        // ViewModel sẽ tạo notification cho staff nhưng không đóng order/bàn.
+                                        // Nút bị khóa sau lần đầu để tránh spam cùng một hóa đơn.
                                         viewModel.notifyPaymentSuccess(tableId, totalAmount)
                                         hasNotifiedPayment = true
                                         onShowMessage(

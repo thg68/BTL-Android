@@ -55,8 +55,14 @@ import kotlinx.coroutines.launch
 private const val TABLE_DEEP_LINK = "androidbtl://table/{tableId}?code={accessCode}"
 
 /**
- * Root UI của app: giữ role hiện tại, điều phối navigation, snackbar,
- * thông báo và luồng tự đăng xuất khi nhân viên đóng bàn.
+ * Root UI của app.
+ *
+ * File này là nơi nối các phần core lại với nhau:
+ * - Giữ session tạm trên UI: chưa đăng nhập, khách, hoặc nhân viên.
+ * - Điều phối route cho khách/nhân viên và deep link từ QR bàn.
+ * - Gửi snackbar dùng chung cho các màn con.
+ * - Mở đúng tab nhân viên khi bấm notification.
+ * - Tự đăng xuất khách khi nhân viên đóng phiên bàn.
  */
 @Composable
 fun AppNavigation() {
@@ -65,7 +71,13 @@ fun AppNavigation() {
     val context = LocalContext.current
     val notificationHelper = remember { NotificationHelper(context) }
 
-    // Session UI cấp app: null = chưa đăng nhập, true = khách, false = nhân viên.
+    // Session UI cấp app:
+    // - null: chưa chọn vai trò hoặc đã logout.
+    // - true: khách đang dùng app theo một tableId cụ thể.
+    // - false: nhân viên đang dùng cụm tab vận hành.
+    //
+    // Session này chỉ điều khiển UI/navigation. Trạng thái thật của bàn vẫn nằm ở Firestore
+    // thông qua RestaurantTable.status, accessCode và các order Open/Closed.
     var isCustomerRole by remember { mutableStateOf<Boolean?>(null) }
     var customerTableId by remember { mutableStateOf("") }
     var hasBeenServing by remember { mutableStateOf(false) }
@@ -80,7 +92,13 @@ fun AppNavigation() {
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
-    // Nhập tay bị chặn ở bàn đang phục vụ; QR có access code được vào lại phiên bàn đó.
+    // Luật login khách:
+    // - Nhập tay chỉ cho vào bàn chưa phục vụ để tránh khách mới vào nhầm bàn đang có người.
+    // - QR có accessCode được coi là vé vào phiên bàn hiện tại, nên khách cùng bàn có thể quét lại.
+    // - Bàn đã đặt vẫn bị chặn để nhân viên chủ động mở bàn đúng thời điểm.
+    //
+    // Lưu ý: hiện tại chỉ kiểm tra accessCode có tồn tại trong deep link để phân biệt nguồn QR.
+    // Nếu muốn bảo mật chặt hơn, nên so khớp accessCode với document tables/{tableId}.
     val loginCustomerToTable: (String, String?, Boolean) -> Unit = login@{ tableId, accessCode, fromQr ->
         val normalizedTableId = tableId.trim()
         val normalizedAccessCode = accessCode.orEmpty()
@@ -108,12 +126,16 @@ fun AppNavigation() {
         isCustomerRole = true
         customerTableId = normalizedTableId
         hasBeenServing = false
+
+        // Đảm bảo mỗi bàn có đúng một order Open trước khi khách vào menu.
+        // Nếu order đã có, ViewModel chỉ cập nhật lại trạng thái bàn là Đang phục vụ.
         posViewModel.ensureOrderForTable(normalizedTableId)
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val token = task.result
-                // Lưu token theo bàn để bếp gửi push khi món chuyển sang Done.
+                // Token FCM được gắn vào document bàn, không gắn vào user.
+                // Nhờ vậy bếp chỉ cần biết tableId là gửi được push về thiết bị khách đang ngồi bàn đó.
                 posViewModel.updateTableFcmToken(normalizedTableId, token)
             }
         }
@@ -131,7 +153,11 @@ fun AppNavigation() {
     val isTableServing = currentTable?.status == "Đang phục vụ"
     val isTableCleared = currentTable?.status == "Trống"
 
-    // Notification staff mở đúng tab nghiệp vụ: billing, tables hoặc KDS.
+    // Notification của nhân viên phải điều hướng về đúng khu vực xử lý:
+    // - targetRoute được ưu tiên vì ViewModel đã biết nghiệp vụ khi tạo NotificationItem.
+    // - payment_* mở tab xác nhận thanh toán.
+    // - call_* mở sơ đồ bàn.
+    // - thông báo món mới mở KDS để bếp xử lý ngay.
     val openStaffNotificationTarget: (NotificationItem) -> Unit = { notification ->
         val targetRoute = when {
             notification.targetRoute.isNotBlank() -> notification.targetRoute
@@ -152,7 +178,10 @@ fun AppNavigation() {
         if (isTableServing) hasBeenServing = true
     }
 
-    // Khách chỉ bị logout khi nhân viên đóng bàn, không phải khi chỉ xác nhận thanh toán.
+    // Tự logout khách khi phiên bàn kết thúc:
+    // - closeOrder() chỉ đóng hóa đơn, không làm khách rời app.
+    // - closeTable() đưa table.status về Trống và xóa accessCode/fcmToken.
+    // - hasBeenServing giúp tránh logout nhầm lúc app vừa mở, khi dữ liệu bàn chưa đồng bộ xong.
     LaunchedEffect(isTableCleared, isCustomerRole) {
         if (isCustomerRole == true && customerTableId.isNotEmpty() && isTableCleared && hasBeenServing && currentRoute != Screen.Login.route) {
             scope.launch {
@@ -255,7 +284,9 @@ fun AppNavigation() {
                 }
 
                 composable(Screen.Tables.route) {
-                    // Staff tabs dùng chung route gốc "tables" để đổi tab nhanh và giữ state.
+                    // Cụm tab nhân viên render trong cùng route gốc "tables".
+                    // Cách này tránh push nhiều route vào back stack khi đổi tab, nên cảm giác chuyển tab nhanh hơn
+                    // và state cục bộ của từng tab không bị reset liên tục như khi navigate route riêng.
                     when (staffTabRoute) {
                         Screen.KDS.route -> KitchenDisplayScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget)
                         Screen.Billing.route -> BillingScreen(viewModel = posViewModel, onNotificationClick = openStaffNotificationTarget)

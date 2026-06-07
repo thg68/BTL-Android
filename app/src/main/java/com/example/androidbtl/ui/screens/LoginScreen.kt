@@ -113,7 +113,13 @@ private fun rememberLoginColors(): LoginColors {
 }
 
 /**
- * Màn đăng nhập chung: khách vào bàn bằng nhập tay/QR, nhân viên vào hệ thống.
+ * Màn đăng nhập chung.
+ *
+ * Khách có hai đường vào:
+ * - Nhập số bàn thủ công: chỉ được vào bàn chưa phục vụ.
+ * - Quét QR bàn: có accessCode của phiên bàn nên có thể vào lại bàn đang phục vụ.
+ *
+ * Nhân viên đăng nhập bằng luồng staff riêng để vào cụm tab vận hành.
  */
 @Composable
 fun LoginScreen(
@@ -308,10 +314,12 @@ fun CustomerLoginTab(onLogin: (String, String?, Boolean) -> Unit, tables: List<R
     fun submitTable(id: String, accessCode: String? = null, fromQr: Boolean = false) {
         val normalizedId = id.trim()
         val normalizedAccessCode = accessCode.orEmpty()
-        // Phân biệt rõ nguồn login:
+        // Rule bảo vệ phiên bàn:
         // - fromQr=false: khách tự nhập số bàn, không được vào bàn Đang phục vụ.
-        // - fromQr=true + accessCode: khách đang quét QR do nhân viên cấp cho phiên bàn hiện tại.
-        // Điều này cho phép nhóm khách cùng bàn quét lại QR để vào app, nhưng người ngoài nhập tay thì bị chặn.
+        // - fromQr=true + accessCode: khách đang quét QR của phiên bàn hiện tại.
+        //
+        // Nhờ rule này, nhóm khách cùng bàn có thể quét lại QR để dùng chung phiên,
+        // nhưng người ngoài chỉ nhập số bàn thì không chiếm được bàn đang có khách.
         val hasQrAccess = fromQr && normalizedAccessCode.isNotBlank()
         val table = tables.find { it.id == normalizedId }
         when {
@@ -669,7 +677,13 @@ private fun CameraQrScanner(
 }
 
 /**
- * QR bàn có thể là deep link androidbtl://table/{id}?code=... hoặc chỉ là mã bàn đơn giản.
+ * Parse nội dung QR bàn.
+ *
+ * App hỗ trợ hai dạng:
+ * - Deep link androidbtl://table/{id}?code=... do TableManagementScreen tạo.
+ * - Chuỗi đơn giản chỉ chứa số bàn để tương thích với QR cũ hoặc test nhanh.
+ *
+ * Nếu có code, LoginScreen truyền tiếp accessCode sang AppNavigation để xử lý như login từ QR.
  */
 private fun parseTableQrPayload(rawValue: String): TableQrPayload? {
     val value = rawValue.trim()

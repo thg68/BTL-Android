@@ -42,7 +42,13 @@ import qrcode.QRCode
 
 /**
  * Dialog QR thanh toán VietQR cho một bàn.
- * Payload được tạo từ số tiền hiện tại và nội dung chuyển khoản BAN<tableId>.
+ *
+ * Payload được tạo từ:
+ * - amount: tổng tiền order hiện tại.
+ * - tableId: dùng để tạo nội dung chuyển khoản BAN<tableId>.
+ *
+ * Dialog này chỉ tạo QR chuyển khoản. Nó không xác nhận thanh toán và không đóng order;
+ * sau khi khách chuyển khoản, nhân viên vẫn đối soát ở BillingScreen.
  */
 @Composable
 fun QrPaymentDialog(
@@ -51,11 +57,12 @@ fun QrPaymentDialog(
     onDismiss: () -> Unit
 ) {
     val amountLong = amount.toLong()
-    // Nội dung chuyển khoản gắn theo bàn để nhân viên dễ đối soát giao dịch trong app ngân hàng.
+    // Nội dung chuyển khoản gắn theo bàn để nhân viên nhìn sao kê ngân hàng là biết giao dịch thuộc bàn nào.
     val description = "BAN$tableId"
 
     val qrBitmap: ImageBitmap = remember(amountLong, description) {
-        // Tạo QR một lần cho mỗi cặp số tiền/nội dung để tránh render lại khi recomposition.
+        // remember theo amount/description để không build lại bitmap QR ở mỗi lần recomposition.
+        // Điều này giảm giật khi dialog đang mở và Compose cập nhật lại cây UI.
         val payload = VietQrGenerator.build(
             bankBin = VietQrConfig.MBBANK_BIN,
             accountNo = VietQrConfig.BANK_ACCOUNT_NUMBER,

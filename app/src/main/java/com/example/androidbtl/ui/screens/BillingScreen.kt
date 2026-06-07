@@ -33,7 +33,11 @@ import com.example.androidbtl.ui.theme.BrandYellow
 import com.example.androidbtl.viewmodel.PosViewModel
 
 /**
- * Tab nhân viên xác nhận thanh toán: kiểm tra chuyển khoản rồi đóng order.
+ * Tab nhân viên xác nhận thanh toán.
+ *
+ * Màn này dùng cho bước đối soát sau khi khách bấm "đã thanh toán".
+ * Khi nhân viên bấm xác nhận, app chỉ đóng order để ghi nhận doanh thu.
+ * Phiên bàn vẫn mở cho tới khi nhân viên sang setting bàn và bấm Đóng bàn.
  */
 @Composable
 fun BillingScreen(
@@ -44,7 +48,9 @@ fun BillingScreen(
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
     val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
     val payableOrders = remember(orders) {
-        // Chỉ hiện các order còn mở đã phát sinh tiền để nhân viên đối soát thanh toán.
+        // Chỉ hiện order Open đã có tiền để nhân viên đối soát.
+        // Hiện tại model Order chưa có field riêng kiểu "paymentReported", nên danh sách này
+        // dựa trên các hóa đơn còn mở có totalAmount > 0.
         orders.filter { it.items.isNotEmpty() && it.totalAmount > 0.0 }
             .sortedByDescending { it.timestamp }
     }
@@ -129,7 +135,8 @@ fun BillingScreen(
                         order = order,
                         onConfirm = {
                             if (order.id.isNotEmpty()) {
-                                // Xác nhận thanh toán chỉ đóng order; bàn kết thúc khi bấm Đóng bàn.
+                                // Xác nhận thanh toán chỉ đóng order để đưa vào doanh thu.
+                                // Không đưa bàn về Trống ở đây để khách không bị logout ngay.
                                 viewModel.closeOrder(order.id, order.tableId)
                             }
                         }

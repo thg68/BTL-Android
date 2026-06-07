@@ -14,6 +14,13 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.Executors
 
+/**
+ * Gửi push notification bằng Firebase Cloud Messaging HTTP v1 API.
+ *
+ * App đang gửi trực tiếp từ thiết bị bằng service_account.json trong assets. Cách này tiện cho bài tập/demo,
+ * nhưng trong sản phẩm thật nên chuyển sang backend hoặc Cloud Functions để không nhúng service account
+ * vào APK.
+ */
 object FcmSender {
     private const val FCM_V1_URL = "https://fcm.googleapis.com/v1/projects/androidbtl-d09e0/messages:send"
     private val client = OkHttpClient()
@@ -26,6 +33,7 @@ object FcmSender {
 
         Executors.newSingleThreadExecutor().execute {
             try {
+                // HTTP v1 API cần OAuth access token lấy từ service account.
                 val accessToken = getAccessToken(context)
                 if (accessToken.isNullOrBlank()) {
                     Log.e("FCM_V1", "Không lấy được Access Token")
@@ -38,6 +46,7 @@ object FcmSender {
                 }
 
                 val androidNotification = JSONObject().apply {
+                    // Icon phải là drawable trắng đơn sắc để Android hiển thị đúng trên notification shade.
                     put("icon", "ic_notification_saka")
                     put("color", "#FFC107")
                 }
@@ -86,6 +95,8 @@ object FcmSender {
 
     private fun getAccessToken(context: Context): String? {
         return try {
+            // service_account.json phải nằm trong app/src/main/assets.
+            // GoogleCredentials refresh token khi hết hạn trước khi gửi request FCM.
             val inputStream = context.assets.open("service_account.json")
             val googleCredentials = GoogleCredentials.fromStream(inputStream)
                 .createScoped(listOf("https://www.googleapis.com/auth/cloud-platform"))

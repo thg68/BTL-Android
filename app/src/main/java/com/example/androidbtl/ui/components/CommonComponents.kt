@@ -69,7 +69,11 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Ảnh món ăn dùng chung, có placeholder và giới hạn kích thước để list cuộn mượt hơn.
+ * Ảnh món ăn dùng chung cho các list menu/KDS.
+ *
+ * imageSizePx giới hạn kích thước decode ảnh từ Coil. Đây là tối ưu hiệu năng quan trọng
+ * vì list món có nhiều ảnh; nếu để ảnh tải full-size thì cuộn list dễ giật và tốn RAM.
+ * Placeholder/error image giữ layout ổn định trong lúc ảnh đang tải hoặc URL lỗi.
  */
 @Composable
 fun AsyncFoodImage(
@@ -216,7 +220,10 @@ fun DishCardSkeleton() {
 
 /**
  * Chuông thông báo realtime cho nhân viên.
- * Click từng thông báo sẽ trả item lên AppNavigation để mở đúng tab liên quan.
+ *
+ * Component này chỉ chịu trách nhiệm hiển thị dropdown và trạng thái đã đọc.
+ * Khi bấm một thông báo, NotificationItem được trả lên AppNavigation để quyết định mở tab nào
+ * dựa trên targetRoute/id. Nhờ vậy component không phải biết nghiệp vụ billing/kds/tables.
  */
 @Composable
 fun StaffNotificationBell(
@@ -232,7 +239,8 @@ fun StaffNotificationBell(
     Box {
         IconButton(onClick = {
             expanded = true
-            // Mở dropdown là xem thông báo, nên đánh dấu toàn bộ là đã đọc ở ViewModel.
+            // Khi mở dropdown, coi như nhân viên đã nhìn thấy toàn bộ thông báo hiện tại.
+            // ViewModel đổi isRead để badge unreadCount biến mất.
             onOpen()
         }) {
             BadgedBox(
@@ -327,7 +335,8 @@ fun StaffNotificationBell(
                                 .fillMaxWidth()
                                 .clickable {
                                     expanded = false
-                                    // NotificationItem giữ targetRoute/id để AppNavigation quyết định tab cần mở.
+                                    // Giữ nguyên NotificationItem khi callback để AppNavigation đọc targetRoute/id.
+                                    // Ví dụ: payment_* -> Billing, call_* -> Tables, món mới -> KDS.
                                     onNotificationClick(notif)
                                 }
                                 .background(

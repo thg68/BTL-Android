@@ -27,7 +27,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.androidbtl.ui.theme.BrandYellow
 
 /**
- * Danh sách route chính của app, gom route + icon + title để tránh hard-code rải rác.
+ * Danh sách route chính của app.
+ *
+ * Mỗi Screen chứa đủ 3 thông tin mà navigation bar cần:
+ * - route: chuỗi NavController dùng để điều hướng.
+ * - icon: icon Material hiển thị ở bottom bar.
+ * - title: nhãn hiển thị cho người dùng.
+ *
+ * Gom route vào đây giúp AppNavigation, BottomNavBar và các notification không phải hard-code
+ * nhiều chuỗi route rải rác, giảm lỗi gõ sai route khi mở tab.
  */
 sealed class Screen(val route: String, val icon: ImageVector, val title: String) {
     object Login : Screen("login", Icons.Filled.AccountCircle, "Đăng nhập")
@@ -49,7 +57,11 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
 
 /**
  * Bottom navigation dùng chung cho khách và nhân viên.
- * Khách navigate route thật; nhân viên đổi tab qua callback để chuyển tab nhanh hơn.
+ *
+ * Có hai cách đổi màn:
+ * - Khách dùng NavController thật vì các route khách có tham số tableId và cần back stack bình thường.
+ * - Nhân viên dùng callback onStaffTabSelected để đổi state staffTabRoute trong AppNavigation.
+ *   Nhờ vậy đổi tab nhân viên không tạo route mới liên tục, giảm delay và giữ state UI tốt hơn.
  */
 @Composable
 fun AppBottomNavBar(
@@ -71,6 +83,9 @@ fun AppBottomNavBar(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedRoute = if (!isCustomer && staffCurrentRoute != null) staffCurrentRoute else currentRoute
+
+    // Route có thể có tham số như cus_bill/{tableId}. Chỉ so sánh phần base trước dấu "/"
+    // để item bottom bar vẫn selected đúng khi đang ở route chi tiết có tableId.
     val currentBase = remember(selectedRoute) { selectedRoute?.substringBefore("/") }
 
     // Login và màn POS chi tiết không dùng bottom bar.
@@ -106,11 +121,14 @@ fun AppBottomNavBar(
                     if (currentBase == routeBase) return@NavigationBarItem
 
                     if (!isCustomer && onStaffTabSelected != null) {
-                        // Staff tabs dùng state trong AppNavigation, tránh tạo back stack mới khi đổi tab.
+                        // Nhân viên đổi tab bằng state, không navigate route mới.
+                        // Đây là tối ưu quan trọng cho cảm giác chuyển tab nhanh trong app vận hành.
                         onStaffTabSelected(screen)
                         return@NavigationBarItem
                     }
 
+                    // Hóa đơn khách cần tableId thật để BillScreen biết lấy order của bàn nào.
+                    // Các tab khách còn lại dùng route cố định.
                     val targetRoute = if (screen == Screen.CusBill && customerTableId.isNotBlank()) {
                         "cus_bill/$customerTableId"
                     } else {

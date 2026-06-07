@@ -11,6 +11,12 @@ import androidx.core.app.NotificationCompat
 import com.example.androidbtl.MainActivity
 import com.example.androidbtl.R
 
+/**
+ * Helper hiển thị notification hệ thống trên thiết bị hiện tại.
+ *
+ * FcmSender dùng để gửi push tới thiết bị khác qua Google FCM.
+ * NotificationHelper dùng khi app hiện tại đã nhận event và cần hiển thị notification local.
+ */
 class NotificationHelper(private val context: Context) {
     private val channelId = "restaurant_notifications"
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -21,6 +27,8 @@ class NotificationHelper(private val context: Context) {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Android 8+ bắt buộc notification phải thuộc một channel.
+            // IMPORTANCE_HIGH giúp thông báo món xong/gọi nhân viên nổi bật hơn.
             val name = "Restaurant Notifications"
             val descriptionText = "Thông báo từ nhà hàng"
             val importance = NotificationManager.IMPORTANCE_HIGH
@@ -34,6 +42,7 @@ class NotificationHelper(private val context: Context) {
     fun showNotification(title: String, message: String) {
         try {
             val intent = Intent(context, MainActivity::class.java).apply {
+                // SINGLE_TOP mở lại MainActivity hiện có thay vì tạo một instance mới.
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
             val pendingIntent = PendingIntent.getActivity(
@@ -42,6 +51,7 @@ class NotificationHelper(private val context: Context) {
             )
 
             val builder = NotificationCompat.Builder(context, channelId)
+                // Dùng icon notification riêng của SaKa để tránh lỗi icon mặc định không hiện trên Android.
                 .setSmallIcon(R.drawable.ic_notification_saka)
                 .setContentTitle(title)
                 .setContentText(message)

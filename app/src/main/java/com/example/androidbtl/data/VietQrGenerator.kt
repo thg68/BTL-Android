@@ -21,6 +21,9 @@ object VietQrGenerator {
 
     /**
      * Sinh payload VietQR theo dạng TLV và gắn CRC16 ở cuối để app ngân hàng quét được.
+     *
+     * Hàm nhận thông tin tài khoản, số tiền và nội dung chuyển khoản từ QrPaymentDialog.
+     * Kết quả trả về là chuỗi payload, sau đó thư viện QRCode render thành bitmap QR.
      */
     fun build(
         bankBin: String,
@@ -39,7 +42,8 @@ object VietQrGenerator {
         val name = sanitize(accountName).take(25)
 
         // Payload VietQR là chuỗi TLV: mỗi field gồm id + length + value.
-        // Thứ tự field ở đây bám theo cấu trúc EMV QR cho chuyển khoản ngân hàng.
+        // Thứ tự field bám theo cấu trúc EMV QR cho chuyển khoản ngân hàng:
+        // thông tin ngân hàng, loại tiền, số tiền, quốc gia, tên tài khoản và nội dung chuyển khoản.
         val sb = StringBuilder().apply {
             append(tlv("00", "01"))
             append(tlv("01", "12"))
@@ -73,6 +77,7 @@ object VietQrGenerator {
 
     /**
      * CRC16-CCITT là checksum bắt buộc của payload VietQR/EMV QR.
+     * Nếu checksum sai, nhiều app ngân hàng sẽ không nhận hoặc đọc sai mã QR.
      */
     private fun crc16Ccitt(input: String): String {
         var crc = 0xFFFF

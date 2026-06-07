@@ -81,7 +81,15 @@ import qrcode.QRCode
 private const val TABLE_LINK_SCHEME = "androidbtl://table"
 
 /**
- * Tab quản lý bàn: mở/đóng phiên bàn, đặt bàn, QR đăng nhập, QR thanh toán và CRUD bàn.
+ * Tab quản lý bàn cho nhân viên.
+ *
+ * Các thao tác core của màn này:
+ * - Xem trạng thái tất cả bàn theo snapshot Firestore.
+ * - Mở bàn và tạo QR đăng nhập cho khách.
+ * - Hiển thị lại QR đăng nhập của bàn đang phục vụ mà không ghi đè accessCode.
+ * - Tạo QR thanh toán theo tổng tiền của order Open.
+ * - Đóng phiên bàn để xóa accessCode/fcmToken và làm khách tự logout.
+ * - Thêm, sửa, xóa bàn bằng long press hoặc FAB.
  */
 @Composable
 fun TableManagementScreen(
@@ -141,7 +149,12 @@ fun TableManagementScreen(
             activeOrder = activeOrder,
             onDismiss = { selectedTable = null },
             onOpenTableQr = {
-                // Bàn đang phục vụ dùng lại accessCode hiện tại để không ghi đè phiên khách.
+                // Có hai trường hợp:
+                // - Bàn đang phục vụ và đã có accessCode: chỉ mở lại QR cũ để khách cùng bàn quét tiếp.
+                // - Bàn chưa mở hoặc thiếu accessCode: gọi ViewModel để tạo accessCode mới và chuyển bàn sang phục vụ.
+                //
+                // Không tạo accessCode mới cho bàn đang phục vụ vì mã QR cũ của khách sẽ mất hiệu lực,
+                // dễ làm người đang dùng app bị lệch phiên.
                 val accessCode =
                     if (table.status == "Đang phục vụ" && table.accessCode.isNotBlank()) {
                         table.accessCode
@@ -157,12 +170,15 @@ fun TableManagementScreen(
                 selectedTable = null
             },
             onCloseTable = {
-                // Đóng phiên bàn sẽ xóa QR/token và làm khách ở bàn đó logout.
+                // Đóng phiên bàn là thao tác kết thúc thật sự:
+                // ViewModel sẽ đóng order Open còn lại, đưa bàn về Trống, xóa QR/token.
+                // AppNavigation phía khách nghe snapshot bàn đổi sang Trống và tự logout.
                 viewModel.closeTable(table.id)
                 selectedTable = null
             },
             onPaymentQr = { amount ->
-                // QR thanh toán không đóng order; nhân viên vẫn phải xác nhận ở BillingScreen.
+                // QR thanh toán chỉ giúp khách chuyển khoản đúng số tiền.
+                // Order vẫn Open để nhân viên đối soát và bấm xác nhận ở BillingScreen.
                 selectedTable = null
                 paymentRequest = table.id to amount
             }
@@ -366,9 +382,14 @@ private fun TableSettingsDialog(
     onCloseTable: () -> Unit,
     onPaymentQr: (Double) -> Unit
 ) {
-    // Chưa có món/order thì không cho tạo QR thanh toán.
+    // payableAmount lấy từ order Open của bàn. Nếu chưa có món thì không mở QR thanh toán,
+    // tránh tạo QR 0đ hoặc QR của một bàn chưa thật sự phát sinh hóa đơn.
     val payableAmount = activeOrder?.items.orEmpty().sumOf { it.price * it.quantity }
-    // QR đăng nhập vẫn hiện khi bàn đang phục vụ để nhân viên mở lại mã cho khách cùng bàn.
+
+    // Khi bàn đang phục vụ:
+    // - Không cho đặt bàn lại.
+    // - Vẫn cho mở QR đăng nhập để khách cùng bàn quét lại.
+    // - Hiện nút Đóng bàn ở cuối dialog để tránh bấm nhầm.
     val canReserve = table.status != "Đang phục vụ"
     val canCloseTable = table.status == "Đang phục vụ"
 
@@ -458,7 +479,9 @@ private fun TableAccessQrDialog(
     table: RestaurantTable,
     onDismiss: () -> Unit
 ) {
-    // Deep link chứa accessCode phiên bàn để khách quét QR vào đúng bàn đang mở.
+    // QR đăng nhập chứa deep link dạng androidbtl://table/{tableId}?code={accessCode}.
+    // AppNavigation nhận deep link này, lấy tableId/accessCode và gọi lại loginCustomerToTable().
+    // accessCode giúp phân biệt khách quét QR hợp lệ với người tự nhập số bàn đang phục vụ.
     val payload = "$TABLE_LINK_SCHEME/${table.id}?code=${table.accessCode}"
     val qrBitmap: ImageBitmap = remember(payload) {
         val bytes = QRCode.ofSquares()
