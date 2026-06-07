@@ -163,7 +163,6 @@ fun KitchenDisplayScreen(
         }
         
         val filteredItems = remember(orders, currentStatus) {
-            // OrderItem hiện không có id riêng, nên KDS lưu cả orderId và index trong list items.
             // Khi bấm đổi trạng thái, ViewModel dùng cặp này để sửa đúng phần tử trong order gốc.
             val list = mutableListOf<Triple<String, Int, OrderItem>>()
             orders.forEach { order ->

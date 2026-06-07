@@ -49,8 +49,6 @@ fun BillingScreen(
     val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
     val payableOrders = remember(orders) {
         // Chỉ hiện order Open đã có tiền để nhân viên đối soát.
-        // Hiện tại model Order chưa có field riêng kiểu "paymentReported", nên danh sách này
-        // dựa trên các hóa đơn còn mở có totalAmount > 0.
         orders.filter { it.items.isNotEmpty() && it.totalAmount > 0.0 }
             .sortedByDescending { it.timestamp }
     }

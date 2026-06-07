@@ -32,9 +32,6 @@ import com.example.androidbtl.viewmodel.PosViewModel
  * - Xem các món đã gửi bếp hoặc đã hoàn tất.
  * - Tạo QR VietQR theo tổng tiền hiện tại.
  * - Bấm báo đã thanh toán để nhân viên thấy hóa đơn ở tab xác nhận.
- *
- * Màn này không tự đóng order và không tự logout khách. Việc xác nhận tiền/đóng bàn
- * là trách nhiệm của nhân viên ở BillingScreen và TableManagementScreen.
  */
 @Composable
 fun BillScreen(

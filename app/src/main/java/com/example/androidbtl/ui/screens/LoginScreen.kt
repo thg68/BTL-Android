@@ -317,9 +317,7 @@ fun CustomerLoginTab(onLogin: (String, String?, Boolean) -> Unit, tables: List<R
         // Rule bảo vệ phiên bàn:
         // - fromQr=false: khách tự nhập số bàn, không được vào bàn Đang phục vụ.
         // - fromQr=true + accessCode: khách đang quét QR của phiên bàn hiện tại.
-        //
-        // Nhờ rule này, nhóm khách cùng bàn có thể quét lại QR để dùng chung phiên,
-        // nhưng người ngoài chỉ nhập số bàn thì không chiếm được bàn đang có khách.
+
         val hasQrAccess = fromQr && normalizedAccessCode.isNotBlank()
         val table = tables.find { it.id == normalizedId }
         when {
@@ -535,6 +533,7 @@ private fun loginTextFieldColors() = rememberLoginColors().let { loginColors ->
     )
 }
 
+//Quét QR bàn
 @Composable
 private fun QrTableScannerDialog(
     onDismiss: () -> Unit,

@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
  * - Nhân viên vào POS theo một bàn cụ thể để hỗ trợ gọi món.
  *
  * Món được thêm vào order với status Cart trước. Chỉ khi bấm gửi bếp,
- * ViewModel mới chuyển Cart -> Pending để KDS nhìn thấy.
+ * ViewModel mới chuyển Cart -> Pending để gửi về cho KitchenDisplayScreen
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,14 +70,12 @@ fun POSOrderScreen(
     var selectedCategory by rememberSaveable { mutableStateOf("Tất cả") }
 
     // activeOrder là hóa đơn Open của bàn hiện tại.
-    // Mọi món mới chọn sẽ đi vào order này với status Cart để khách còn có thể xem/chỉnh giỏ
-    // trước khi gửi xuống bếp.
+    // Mọi món mới chọn sẽ đi vào order này với status Cart để khách còn có thể xem/chỉnh giỏ trước khi gửi xuống bếp.
     val activeOrder = remember(orders, tableId) { orders.find { it.tableId == tableId } }
     val categories = remember(menuItems) { listOf("Tất cả") + menuItems.map { it.category }.distinct() }
 
     val filteredMenuItems = remember(menuItems, selectedCategory, searchQuery) {
         // Lọc ngay trên danh sách menu đã có trong StateFlow để UI phản hồi tức thì.
-        // Không query Firestore theo từng ký tự tìm kiếm vì sẽ gây delay và tốn request.
         menuItems.filter {
             (selectedCategory == "Tất cả" || it.category == selectedCategory) &&
                 (
@@ -297,7 +295,7 @@ fun POSOrderScreen(
                             AdvancedMenuItemCard(item) {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 cartAnimateTrigger++
-                                // Nếu snapshot order chưa kịp về sau khi mở bàn, activeOrder có thể null.
+                                // Nếu order chưa kịp về sau khi mở bàn, activeOrder có thể null.
                                 // Khi đó tạo order trước và yêu cầu bấm lại món để tránh ghi vào document rỗng.
                                 if (activeOrder == null) {
                                     viewModel.createOrderForTable(tableId)

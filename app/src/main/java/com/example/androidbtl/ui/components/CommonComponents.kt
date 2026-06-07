@@ -221,9 +221,8 @@ fun DishCardSkeleton() {
 /**
  * Chuông thông báo realtime cho nhân viên.
  *
- * Component này chỉ chịu trách nhiệm hiển thị dropdown và trạng thái đã đọc.
- * Khi bấm một thông báo, NotificationItem được trả lên AppNavigation để quyết định mở tab nào
- * dựa trên targetRoute/id. Nhờ vậy component không phải biết nghiệp vụ billing/kds/tables.
+ * Component này dùng để hiển thị dropdown và trạng thái đã đọc.
+ * Khi bấm một thông báo, NotificationItem được trả lên AppNavigation để quyết định mở tab dựa trên targetRoute/id.
  */
 @Composable
 fun StaffNotificationBell(

@@ -30,9 +30,9 @@ import com.example.androidbtl.ui.theme.BrandYellow
  * Danh sách route chính của app.
  *
  * Mỗi Screen chứa đủ 3 thông tin mà navigation bar cần:
- * - route: chuỗi NavController dùng để điều hướng.
- * - icon: icon Material hiển thị ở bottom bar.
- * - title: nhãn hiển thị cho người dùng.
+ * -route: chuỗi NavController dùng để điều hướng.
+ * -icon: icon Material hiển thị ở bottom bar.
+ * -title: tên hiển thị cho người dùng.
  *
  * Gom route vào đây giúp AppNavigation, BottomNavBar và các notification không phải hard-code
  * nhiều chuỗi route rải rác, giảm lỗi gõ sai route khi mở tab.
@@ -54,15 +54,8 @@ sealed class Screen(val route: String, val icon: ImageVector, val title: String)
     object CusBooking : Screen("cus_booking/{tableId}", Icons.AutoMirrored.Filled.List, "Giỏ hàng")
     object CusProfile : Screen("cus_profile", Icons.Filled.AccountCircle, "Tài khoản")
 }
+ //Bottom navigation dùng chung cho khách và nhân viên.
 
-/**
- * Bottom navigation dùng chung cho khách và nhân viên.
- *
- * Có hai cách đổi màn:
- * - Khách dùng NavController thật vì các route khách có tham số tableId và cần back stack bình thường.
- * - Nhân viên dùng callback onStaffTabSelected để đổi state staffTabRoute trong AppNavigation.
- *   Nhờ vậy đổi tab nhân viên không tạo route mới liên tục, giảm delay và giữ state UI tốt hơn.
- */
 @Composable
 fun AppBottomNavBar(
     navController: NavController,
@@ -121,13 +114,12 @@ fun AppBottomNavBar(
                     if (currentBase == routeBase) return@NavigationBarItem
 
                     if (!isCustomer && onStaffTabSelected != null) {
-                        // Nhân viên đổi tab bằng state, không navigate route mới.
-                        // Đây là tối ưu quan trọng cho cảm giác chuyển tab nhanh trong app vận hành.
+                        // Nhân viên đổi tab bằng state, không navigate route mới.(Chyển tab nhanh)
                         onStaffTabSelected(screen)
                         return@NavigationBarItem
                     }
 
-                    // Hóa đơn khách cần tableId thật để BillScreen biết lấy order của bàn nào.
+                    // Hóa đơn khách dùng tableId thật để BillScreen biết lấy order của bàn nào.
                     // Các tab khách còn lại dùng route cố định.
                     val targetRoute = if (screen == Screen.CusBill && customerTableId.isNotBlank()) {
                         "cus_bill/$customerTableId"
