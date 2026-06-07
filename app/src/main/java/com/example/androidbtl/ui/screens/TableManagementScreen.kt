@@ -521,8 +521,6 @@ private fun TableAccessQrDialog(
                     Image(bitmap = qrBitmap, contentDescription = "QR mở bàn", modifier = Modifier.size(240.dp))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(payload, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = onDismiss) {
                     Text("Đóng", color = BrandYellow, fontWeight = FontWeight.Bold)
                 }

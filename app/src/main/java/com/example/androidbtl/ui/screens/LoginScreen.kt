@@ -314,21 +314,26 @@ fun CustomerLoginTab(onLogin: (String, String?, Boolean) -> Unit, tables: List<R
     fun submitTable(id: String, accessCode: String? = null, fromQr: Boolean = false) {
         val normalizedId = id.trim()
         val normalizedAccessCode = accessCode.orEmpty()
+        val table = tables.find { it.id == normalizedId }
         // Rule bảo vệ phiên bàn:
         // - fromQr=false: khách tự nhập số bàn, không được vào bàn Đang phục vụ.
-        // - fromQr=true + accessCode: khách đang quét QR của phiên bàn hiện tại.
-
-        val hasQrAccess = fromQr && normalizedAccessCode.isNotBlank()
-        val table = tables.find { it.id == normalizedId }
+        // - fromQr=true: QR phải chứa accessCode khớp chính xác với accessCode hiện tại của bàn.
+        //   Nếu nhân viên đã đóng bàn hoặc đã mở lại bàn với QR mới, QR cũ sẽ bị từ chối.
+        val hasValidQrAccess = fromQr
+            && normalizedAccessCode.isNotBlank()
+            && table?.accessCode.orEmpty() == normalizedAccessCode
         when {
             normalizedId.isBlank() -> errorMessage = "Vui lòng nhập số bàn"
             tables.isEmpty() -> errorMessage = "Đang tải danh sách bàn, vui lòng thử lại"
             table == null -> errorMessage = "Không tìm thấy bàn $normalizedId"
             table.status == "Đã đặt" -> errorMessage = "Bàn $normalizedId đã được đặt trước"
-            table.status == "Đang phục vụ" && !hasQrAccess -> {
+            fromQr && !hasValidQrAccess -> {
+                errorMessage = "Mã QR đã hết hiệu lực. Vui lòng yêu cầu nhân viên cấp QR mới."
+            }
+            table.status == "Đang phục vụ" && !hasValidQrAccess -> {
                 errorMessage = "Bàn $normalizedId đang có khách sử dụng"
             }
-            else -> onLogin(normalizedId, accessCode, hasQrAccess)
+            else -> onLogin(normalizedId, accessCode, hasValidQrAccess)
         }
     }
 

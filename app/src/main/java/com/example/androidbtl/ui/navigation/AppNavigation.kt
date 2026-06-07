@@ -93,8 +93,12 @@ fun AppNavigation() {
     val loginCustomerToTable: (String, String?, Boolean) -> Unit = login@{ tableId, accessCode, fromQr ->
         val normalizedTableId = tableId.trim()
         val normalizedAccessCode = accessCode.orEmpty()
-        val hasQrAccess = fromQr && normalizedAccessCode.isNotBlank()
         val table = posViewModel.tables.value.find { it.id == normalizedTableId }
+        // QR chỉ hợp lệ khi accessCode trong QR khớp chính xác với accessCode hiện tại của bàn trên Firestore.
+        // Nhờ vậy QR cũ (từ phiên trước hoặc đã bị nhân viên đóng bàn) sẽ tự động hết hiệu lực.
+        val hasValidQrAccess = fromQr
+            && normalizedAccessCode.isNotBlank()
+            && table?.accessCode.orEmpty() == normalizedAccessCode
         when {
             normalizedTableId.isBlank() -> {
                 showMessage("Vui lòng chọn bàn hợp lệ.")
@@ -108,7 +112,11 @@ fun AppNavigation() {
                 showMessage("Bàn $normalizedTableId đã được đặt trước.")
                 return@login
             }
-            table.status == "Đang phục vụ" && !hasQrAccess -> {
+            fromQr && !hasValidQrAccess -> {
+                showMessage("Mã QR đã hết hiệu lực. Vui lòng yêu cầu nhân viên cấp QR mới.")
+                return@login
+            }
+            table.status == "Đang phục vụ" && !hasValidQrAccess -> {
                 showMessage("Bàn $normalizedTableId đang có khách sử dụng.")
                 return@login
             }
